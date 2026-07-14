@@ -1,0 +1,69 @@
+Weft — Dual Licensing
+=====================
+
+This repository is dual-licensed, deliberately, to serve two different goals
+per the design document's §26.2 (governance, plurality, and the designed-in
+right to fork):
+
+  1. The **protocol engine** and its test harness are permissively licensed
+     so any other client — including forks with different UI decisions or
+     different runtime targets — may embed them without inheriting a
+     copyleft obligation. This makes Weft compatible with DD §11.5's
+     client-plurality/substitutability defense.
+
+  2. The **reference client** (PWA and headless porch node) is copyleft so
+     that a forked or hosted variant must publish its source. This is the
+     block against DD §11.5's poison-the-well risk: a closed,
+     data-harvesting client wearing Weft's name.
+
+If you disagree with either choice, DD §26.2's separable-trademark posture
+applies: fork the code, publish under your license, ship under your name.
+The protocol is the product; the name is severable from it.
+
+
+License by path
+---------------
+
+  weft/packages/core/**                Apache-2.0    (see LICENSE-APACHE-2.0)
+  weft/packages/sim/**                 Apache-2.0    (see LICENSE-APACHE-2.0)
+  weft/packages/pwa/**                 AGPL-3.0     (see LICENSE-AGPL-3.0)
+  weft/packages/porch/**               AGPL-3.0     (see LICENSE-AGPL-3.0)
+
+  All Markdown documents at repository root
+  and under weft/docs/**               Apache-2.0    (see LICENSE-APACHE-2.0)
+
+Files not listed inherit Apache-2.0 (the more permissive of the two — a
+conservative default for anything that later moves between packages).
+
+
+SPDX identifiers
+----------------
+
+Every package.json in this repository declares its license via the SPDX
+"license" field. If the path table above and a package.json disagree, the
+package.json wins for that package (it is closer to the code); please open
+an issue so the mismatch can be corrected.
+
+
+Full license texts
+------------------
+
+The complete texts of both licenses are in this repository:
+
+  LICENSE-APACHE-2.0   Apache License, Version 2.0, January 2004
+  LICENSE-AGPL-3.0     GNU Affero General Public License, Version 3, 19 Nov 2007
+
+Both files are the canonical texts as published by their respective
+stewards (the Apache Software Foundation and the Free Software Foundation).
+They have not been modified.
+
+
+Copyright
+---------
+
+Copyright (c) 2026 Weft contributors.
+
+Individual contributors retain copyright to their contributions and license
+them to the project under the license identified for the path they
+contributed to. By opening a pull request, you agree that your contribution
+is licensed under the license already applied to the file(s) you modified.

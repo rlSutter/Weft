@@ -64,9 +64,12 @@ core/src/
   invite/          invite-token wire format + redemption engine                        [M1-T3, M5-T2, DD §30]
   wrap/            NIP-44 pairwise seal + NIP-59 gift-wrap                             [M2, DD §33.1]
   store/           WeftStore interface + MemoryStore + expiry reaper                   [M3, DD §9.2]
+  relay/           transport-agnostic relay interface (adapters in pwa/porch;
+                   MockRelay in sim)                                                    [M4-T1]
   routing/         query engine — ask/forward/reply, private routing sketch            [M5-T3, DD §3, §17.2]
   handshake/       5-stage consent handshake state machine (kinds 4913–4917)           [M5-T4, DD §5]
   embed/           Embedder interface + StubEmbedder (deterministic, test-only)        [M5-T1, DD §19]
+  health.ts        local-only counters, never published                                [M5-T5, DD §10.1]
   index.ts         package barrel
 ```
 
@@ -89,7 +92,7 @@ Vite + React 18 with `vite-plugin-pwa`. Provides the DOM adapters `core/` delibe
 - **UI** — onboarding, ask flow, match cards, reveal, message thread. The authoritative spec is `weft-ux-spec.md` (Part IV per-screen BUILD sections are normative — copy strings, states, acceptance checklists); `weft-mockup.html` / `weft-mockup.jsx` are the visual language reference (palette, type, card patterns). The mockup contains some v2 surfaces (personas, travel modes, escrow) that must NOT be wired up in v0 — the UX spec's scope filter is the source of truth.
 - **`MiniLMEmbedder`** — quantized `all-MiniLM-L6-v2` via `@huggingface/transformers`, WASM backend, cached to browser storage (M8; `StubEmbedder` remains the test-suite embedder).
 
-Persistent state uses `idb` (async IndexedDB wrapper). Keys are wrapped with a passphrase-derived key via `@noble/ciphers` / `@noble/hashes` — no WebCrypto (DD §32.2: the required curve isn't in WebCrypto).
+Persistent state uses `idb` (async IndexedDB wrapper). Signing uses noble because WebCrypto lacks secp256k1; key-wrapping also uses noble (`scrypt` for the passphrase KDF + AES-GCM from `@noble/ciphers`) to keep one audited crypto surface rather than two. WebCrypto's AES-GCM would be legitimate for wrapping in isolation, but mixing crypto libraries within a single privacy-critical flow is a well-known source of subtle bugs — the discipline is *one library or the other*, and noble is the one that covers everything.
 
 ---
 
@@ -112,6 +115,7 @@ Empty for now. Per build-list M0 the design document will be copied here once Cl
 - **Pinned stack only** (build list §2). New dependencies require explicit approval — the crypto and Nostr layers are deliberately narrow.
 - **Never hand-roll cryptography.** Only `@noble/curves` (secp256k1 + BIP-340 Schnorr), `@noble/hashes`, `@noble/ciphers`, and `nostr-tools`' NIP-44 helpers.
 - **No backend code, ever.** The only network calls anywhere are WebSocket connections to Nostr relays. There is no HTTP API to build, no database server to run, no auth service — if a task appears to need one, it has been misread.
+- **npm scope:** packages publish under `@weft/*` (verified 2026-07-13: `@weft/core`, `@weft/sim`, `@weft/pwa`, `@weft/porch` all return 404 on the registry, i.e., available). The `weft` npm org itself will be reserved by the human designer before M0-T1 publishes any package. If the org proves unavailable at publish time, the fallback is `@weft-protocol/*` and this document + every import gets renamed in one commit. Unscoped `weft` on npm is taken (Google Web Fonts wrapper); on PyPI it is also taken. Both are unrelated projects, but they close off the unscoped names.
 
 ---
 

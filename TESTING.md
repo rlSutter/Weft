@@ -4,6 +4,8 @@ How to prove the code does what the design and UX spec say it does. Every task i
 
 Testing is co-owned with **Fable**, who reviews test coverage and can require additional tests before a phase is released.
 
+> **Revision note (2026-07-13).** Updated for DD §35. Material changes: **four** release gates, not two (Gate 3 — no plaintext vouches on relays, F1; Gate 4 — route paths cannot be correlated, F2); Layer 3.5 for component tests of safety-critical UI invariants (M9); copy lint operates on source, not the built bundle (H5); Layer 1 gains store-migration tests (L14); Layer 4 gains explicit accessibility items (L15); project-review authority is distinguished from protocol governance (L13).
+
 ---
 
 ## The five layers
