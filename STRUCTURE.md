@@ -1,6 +1,6 @@
 # Weft — Application Structure
 
-This document describes the layout of the `weft/` application scaffold. It is a map, not a build guide. Implementation follows `weft-build-list.md` milestone by milestone; design intent lives in `weft-design.md` (referenced below as **DD §n**).
+This document describes the layout of the `weft/` application scaffold. It is a map, not a build guide. Implementation follows `weft-build-list.md` milestone by milestone; design intent lives in `weft-design.md` (referenced below as **DD §n**); UI specifications live in `weft-ux-spec.md` (normative for M6 — the **BUILD** sections there are byte-for-byte binding, the way DD §30 and §33 are for wire formats).
 
 ---
 
@@ -10,10 +10,11 @@ This document describes the layout of the `weft/` application scaffold. It is a 
 Weft/                       (this folder)
   weft-design.md            design document (Fable is revising)
   weft-build-list.md        execution plan for v0
+  weft-ux-spec.md           UX specification (normative for M6)
   weft-manifesto.md
   weft-overview.md
-  weft-mockup.html          UI reference
-  weft-mockup.jsx           UI reference (React)
+  weft-mockup.html          UI visual reference
+  weft-mockup.jsx           UI visual reference (React)
   STRUCTURE.md              this file
 
   weft/                     application scaffold
@@ -85,7 +86,7 @@ Vite + React 18 with `vite-plugin-pwa`. Provides the DOM adapters `core/` delibe
 
 - **`IdbStore`** — IndexedDB implementation of `WeftStore` (runs the same conformance test suite as `MemoryStore`).
 - **Relay pool** — WebSocket transport via `nostr-tools` SimplePool.
-- **UI** — onboarding, ask flow, match cards, reveal, message thread (build-list M6, copy patterns from `weft-mockup.jsx`).
+- **UI** — onboarding, ask flow, match cards, reveal, message thread. The authoritative spec is `weft-ux-spec.md` (Part IV per-screen BUILD sections are normative — copy strings, states, acceptance checklists); `weft-mockup.html` / `weft-mockup.jsx` are the visual language reference (palette, type, card patterns). The mockup contains some v2 surfaces (personas, travel modes, escrow) that must NOT be wired up in v0 — the UX spec's scope filter is the source of truth.
 - **`MiniLMEmbedder`** — quantized `all-MiniLM-L6-v2` via `@huggingface/transformers`, WASM backend, cached to browser storage (M8; `StubEmbedder` remains the test-suite embedder).
 
 Persistent state uses `idb` (async IndexedDB wrapper). Keys are wrapped with a passphrase-derived key via `@noble/ciphers` / `@noble/hashes` — no WebCrypto (DD §32.2: the required curve isn't in WebCrypto).
@@ -130,7 +131,7 @@ Absent from this scaffold because they are deferred to v2 (build-list §13): voi
 | **M3** | `core/store`, `pwa/` | `WeftStore` interface, `MemoryStore`, `IdbStore`, expiry reaper |
 | **M4** | `core/relay`, `sim/` | relay pool, offline outbox, `MockRelay` |
 | **M5** | `core/{embed,invite,routing,handshake}` | the heart — StubEmbedder, invite/query/handshake engines, local counters |
-| **M6** | `pwa/` | PWA shell, onboarding, ask/matches, honest surfaces |
+| **M6** | `pwa/` | PWA shell, onboarding, ask/matches, honest surfaces — implements `weft-ux-spec.md` Part IV |
 | **M7** | `porch/` | headless runner |
 | **M8** | `pwa/`, `porch/` | real MiniLM embeddings |
 
