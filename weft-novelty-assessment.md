@@ -1,0 +1,58 @@
+# Weft — Novelty & Prior-Art Assessment
+
+*Prepared by Fable. This is a grounded assessment: claims below were checked against current literature and live systems via search, not from memory alone. It is not a patent clearance opinion — see §6.*
+
+## 1. Method and headline
+
+I identified the mechanisms Weft's own documents claim as novel-in-combination, then searched for the closest prior systems in four areas: (a) semantic peer-to-peer / social-graph discovery, (b) friend-of-friend query routing and its patents, (c) rejection/consent interaction design, (d) Sybil-resistant vouching, anonymous credentials, and the Nostr private-messaging stack Weft builds on.
+
+**Headline, unchanged from my first assessment but now evidence-backed: Weft invents essentially no primitives and does not claim to. Its defensible contribution is a specific *synthesis and a set of framings* — and, importantly, several of the things it treats as first-class design guarantees are things the closest prior systems either don't do or explicitly get criticized for *not* doing.** The prior art is closer than a casual reader would guess (Tribler is strikingly close on discovery; a US patent covers FoF semantic query forwarding), which makes honesty here both easier and more necessary.
+
+## 2. The closest prior art, named
+
+**Tribler / BuddyCast (Delft, 2006–2012) — the closest system overall.** A decentralized P2P system that builds a *semantic overlay*: peers gossip preference lists, compute pairwise similarity as the **cosine of interest vectors**, discover "taste buddies," and do **semantic-overlay search** by querying similar peers — with an explicit **query quota** (unlimited for friends, 100 for unknown senders) as spam control. This is remarkably close to Weft's embedding-cosine routing sketch, its fan-out toward relevant peers, and its per-sender postage. If Weft has a single most-relevant ancestor, it is Tribler. **What Tribler is not:** it is a file-sharing recommender, not a person-to-person introduction protocol; it has no consent handshake, no origin ambiguity (it explicitly "does not yet provide anonymity"), no vouch-privacy, no rejection model, and its taste-buddy graph and preference lists are shared, not protected.
+
+**US Patent 8,862,635 / 8,386,534 — "Automatic gleaning of semantic information in social networks."** Describes a query engine that walks friends and friends-of-friends, retrieves query-relevant info from each, identifies the best non-friend candidate, and has the querier ask a mutual friend to **forward the query** to that candidate, who replies "yes, I can help." This is friend-of-friend semantic query *forwarding with a reply path* — the skeleton of Weft's routing. It predates Weft and is live IP. It does **not** contain origin ambiguity, detail-stripping per hop, blinded route tokens, the consent handshake, or anything cryptographic; it's a centralized-social-graph query walker. But anyone claiming Weft's *routing* as novel must reckon with it (see §6).
+
+**Friend-to-friend (F2F) networks — RetroShare, GNUnet, OneSwarm, Freenet.** Long-established: you connect only to people you know; nodes forward requests anonymously between friends "without telling either the other's name or IP address," and the network grows without members learning who else participates. Weft's origin-ambiguous, forward-for-everyone hop routing is squarely in this tradition (and Weft cites its ancestor, Crowds, 1998). Weft's addition over classic F2F is the *semantic* routing target and the consent/vouch layer, not the anonymity-by-forwarding itself.
+
+**BrightID / Proof-of-Humanity / Circles — social-graph Sybil resistance.** Vouching-based uniqueness via web-of-trust graph analysis. Critically, the well-known critique of BrightID (Molly White, 2022) is that "its entire web-of-trust system relies on people revealing their identities... and reveals a massive web of verifications between users" — i.e., **it publishes the social graph**, the exact thing Weft's F1 fix refuses to do. Weft's vouch-privacy is a direct, deliberate departure from this dominant design.
+
+**Nostr NIP-59 / NIP-17 — the messaging substrate.** Weft builds on these directly and correctly: gift-wrapped events under ephemeral keys, "a seal identifies the author... but not the recipient," and — notably — **NIP-17/59 already mandate randomizing `created_at` up to two days in the past to thwart time-analysis.** Weft's §35 F3 "adopt randomized wrapper timestamps" is therefore *conformance with existing practice*, not an invention (and I'd correct any Weft text implying otherwise). NIP-59's own text flags that gift wraps break pubkey-based anti-spam/WoT — which is exactly the gap Weft's postage and vouch layers try to fill.
+
+## 3. What survives as genuinely novel-in-combination
+
+After the searches, these hold up as either novel or, more defensibly, **novel-as-enforced-guarantee** — prior art contains the idea as advice or convention, Weft makes it a wire-level or tested invariant:
+
+1. **Rejection made unrepresentable at the protocol level.** Double-opt-in (Tinder 2012) and silent-unmatch-with-no-notification (Hinge/Bumble) are ubiquitous *product* patterns — the search confirms they're standard and understood to reduce harassment. What I found *no* prior instance of is designing the **protocol to contain no "no" message at all**, and enforcing "a decline emits zero bytes" as a release-gate test. Others implement silence as a UI choice; Weft makes it a structural guarantee. That reframing is, as far as I can find, novel.
+
+2. **Vouch-privacy as a hard invariant ("the trust graph *is* the social graph, so never publish it").** The observation is old (social-network analysis 101), and F2F networks hide membership — but the *dominant* vouching systems (PGP keyservers, BrightID, most WoT) publish the trust graph, and are criticized for it. Weft elevating "no plaintext pubkey-to-pubkey link ever touches a relay" to a tested release gate, and rebuilding vouches as privately-delivered self-contained credentials to honor it, is a genuine and unusual discipline. Not a new primitive; a new *rule*, consistently applied.
+
+3. **The target itself: replacing platform *discovery* rather than platform *publishing*.** Every close cousin aims elsewhere — Tribler at files, Mastodon/Bluesky/Nostr at broadcast/publishing, BrightID at uniqueness, Signal at conversation-after-you-know-someone, the '635 patent at info-retrieval within a known social graph. Weft aiming the whole apparatus at *introducing strangers through consent-gated, vouch-attested, origin-ambiguous asks* is a distinct product target. The pieces are old; this particular assembly-toward-this-goal I did not find shipped or specified elsewhere.
+
+4. **Discovery that carries meaning but not media** (ask with an embedding; the media never leaves the device until a handshake completes). A clean, and as far as I found unclaimed, combination — though it is a natural application of existing embedding + E2EE-attachment patterns, so I'd rate it "novel combination, low inventive height."
+
+5. **The single-artifact invite** bootstrapping identity + graph edge + vouch commitment + relay hints + charter consent in one signed, fragment-carried token. An engineering synthesis I didn't find packaged this way; modest but real.
+
+6. **Making invariant 5 enforceable via the credential engine** (k-show bounds plurality; scoped-pseudonym nullifiers make ejection stick against an unidentifiable member). The primitives are entirely standard (BBS+, k-show credentials, nullifiers — Camenisch-Lysyanskaya lineage, now common in the zk/airdrop world). What's arguably novel is applying scoped nullifiers as *group door policy* ("ejection sticks without anyone learning who was ejected") rather than as double-spend or unique-airdrop-claim prevention. Application-novel, not primitive-novel.
+
+## 4. What is definitely *not* novel (claim none of it)
+
+Semantic cosine routing toward similar peers (Tribler); friend-of-friend query forwarding with reply paths (the '635 patent, and Tribler); anonymity-by-forwarding (Crowds 1998, all F2F networks); web-of-trust vouching and Sybil-island analysis (PGP, BrightID, Advogato/EigenTrust); gift-wrapped metadata-hiding messages and randomized timestamps (NIP-59/17); commit-reveal fair exchange; BBS+/k-show/nullifier credentials (CL signatures and the entire zk-identity field); encrypted-blob-plus-pointer media (Signal, Matrix); Ostrom commons governance; MLS group keying (RFC 9420); small-world/six-degrees routing (Milgram; Kleinberg). Weft's own design doc is admirably honest that these are composed, not invented — the assessment confirms it was right to be.
+
+## 5. The honest one-paragraph claim Weft can defend
+
+*"Weft composes well-understood primitives — semantic P2P discovery in the lineage of Tribler, friend-of-friend forwarding, Crowds-style origin ambiguity, web-of-trust vouching, NIP-59 gift wrapping, BBS+ anonymous credentials, MLS, and Ostrom governance — toward a target its closest cousins do not aim at: replacing platform **discovery** without a platform. Its more distinctive moves are not new cryptography but new **guarantees**: rejection that is unrepresentable rather than merely unshown, and a trust graph that is never published rather than published-and-analyzed. Several such properties are things the nearest prior systems (Tribler, BrightID, PGP) are specifically criticized for lacking."*
+
+That is both true and, I think, more persuasive than an inventive-novelty claim would be.
+
+## 6. Caveats and what to do before any public novelty claim
+
+- **The '635/'534 patent is the one to take seriously.** It covers FoF semantic query forwarding with a reply path in a social network. Weft's routing differs (origin ambiguity, hop detail-stripping, blinded tokens, consent handshake, no central graph), and the patent's priority/expiry and claim scope need a real read — but this is the single item where "prior art" shades into "possible freedom-to-operate question." A patent attorney should review the actual claims before Weft asserts routing novelty or ships broadly in a jurisdiction where it's in force.
+- **This was a literature/landscape search, not a patent search.** I checked the obvious academic and live-system prior art. A professional prior-art/FTO search (BrightID-adjacent WoT patents, DIDComm connection-protocol IP, dating-app "matching" patents, Nostr NIP drafts in flight) is warranted before any marketing claim of novelty.
+- **One thing to double-check in the docs (minor):** §35 F3 and §33.4 already credit randomized timestamps as "standard NIP-59 practice Weft adopts" — which is correct and appropriately humble. Good. Just ensure no *outward-facing* doc (manifesto, overview, any future pitch) ever recasts this as a Weft innovation; it's table stakes the substrate already provides.
+- **Recommended public posture:** describe Weft as "a synthesis and a set of design guarantees," name Tribler and Crowds and NIP-59 as ancestors explicitly (it costs nothing and buys credibility), and reserve the word "novel" for the two or three enforced-guarantee framings in §3, hedged as "as far as we know."
+
+## 7. Bottom line
+
+Nothing in the searches undermines Weft as a *design*; several findings *strengthen* its positioning by showing that its distinctive privacy guarantees are exactly where respected prior systems are weakest. But the discovery-and-routing core is closer to existing work (Tribler; the '635 patent) than the project's framing sometimes implies, so novelty should be claimed narrowly, at the level of enforced guarantees and product target, and only after a real prior-art/FTO review.
