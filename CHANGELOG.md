@@ -27,6 +27,11 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 ### Fixed (spec)
 - DD §35 disposition: F1–F6, F9–F12, F14 now closed in the specification; F13 (minors) carries a stated v0 posture pending a dedicated design cycle; F7/F8/F15/F16 stand as documented operational residuals. Build-list M5-T3 gains probe-resistance (F6) and M7-T1 gives porch nodes their own device key (F10).
 
+### Added (v2 spec)
+- **DD §36 — full specification of the v2 group and persona layers:** the shared BBS+/BLS12-381 credential engine (§36.1), the group layer (membership as scoped pseudonyms, join/messaging/ejection flows, small-group keys and the MLS transition past 150 members, group-as-respondent completing F9) (§36.2), and the persona layer (hardened derivation, anonymous standing, k-show bounds, lifecycle and hygiene) (§36.3). Registry kinds **4930–4933** added (§36.4). Invariant 5 ("plurality bounded, accountability scoped") moves from *promised* to *specified-and-enforceable*.
+- **Build-list §16 — v2 milestones M9–M13** (credential engine, group layer, persona layer, anonymous rendezvous, invariant re-audit with v2 release gates 5 and 6). Inert until v0 ships. One sanctioned new dependency: BBS+ over BLS12-381.
+- `STRUCTURE.md`, `SECURITY.md`, `TESTING.md` updated for the v2 layers (reserved `core/{cred,group,persona}` folders; invariant-5 enforcement path; BBS+ as the sole v2 crypto addition; gates 5 and 6). — reviewed by: Fable
+
 ---
 
 ## [0.0.1] — 2026-07-13 — Scaffold — reviewed by: pending

@@ -20,7 +20,7 @@
 
 **Where the design is honest about tension.** §16 catalogs twelve open problems, all of which now carry worked design responses: the sensitive-interest paradox via origin-ambiguous routing, private matching, and anonymously-vouched rendezvous (§17); plural personas via unlinkable, k-bounded, scope-accountable selves (§18); the embedding model's hidden centralization via named, community-chosen, fireable semantic spaces (§19); the equity gap via institutional vouching and earnable ladders (§20); vouch economics via graduated, liability-bounded, invisible vouching (§21); OS dependency via content-free pokes and client plurality (§22); legal exposure via minimal attested payloads and duty-mapping (§23); meetup safety via group-first introductions and peer escrow (§24); standing queries as rhythm rather than registry (§25); protocol governance via a constitutional invariant test and designed-in fork rights (§26); and match quality via re-ask rates and sentinel calibration (§27). Every section names its residual risks; none claims to have eliminated its tradeoff.
 
-**Status.** Working draft: thresholds are guesses, protocol sketches await adversarial review, and the recurring pattern worth trusting is that single mechanisms keep paying multiple bills (postage=battery, sentinels=chaff, chaff=deniability, persona credentials=anonymous rendezvous).
+**Status.** Working draft: thresholds are guesses, protocol sketches await adversarial review, and the recurring pattern worth trusting is that single mechanisms keep paying multiple bills (postage=battery, sentinels=chaff, chaff=deniability, persona credentials=anonymous rendezvous). The v0 slice is specified to build-ready depth (§§30, 33; the build list); the **v2 group and persona layers are now specified concretely in §36** (BBS+ credential engine, group key management and MLS transition, membership and ejection flows, persona lifecycle) — registry-complete and flow-complete, though built only after v0 ships.
 
 ---
 
@@ -364,11 +364,11 @@ If gates fail, iterate in place — thresholds, dialogue design, terms UX — ra
 | Vouch revocation propagation | First key-compromise incident, or before cell #3 |
 | Disjoint-path redundant routing | When single-path drop rates become visible in beacons |
 | Self-contained vouch chains traveling with match tokens | **Decide format now** — retrofit is painful (§9.3) |
-| MLS group keying | First group >150 members |
+| MLS group keying (**now specified, §36.2**) | First group >150 members |
 | DIDs / key rotation | Before identity portability matters (cell #3+) |
 | Social recovery (Shamir 3-of-5) | With DID migration |
 | LLM clarifying dialogue | After scripted-dialogue learnings from seed |
-| Governance tooling (multi-sig charters, juries, attestation feeds) | First real governance crisis in a cell |
+| Governance tooling (multi-sig charters, juries, attestation feeds) (**now specified, §36.2**) | First real governance crisis in a cell |
 
 **Open design threads:** the terms-language vocabulary and its two-tap UI; rendezvous-node protocol details; attestation-feed subscription format; economic sustainability of client development at scale.
 
@@ -1074,7 +1074,7 @@ Every private object travels as a **NIP-59-style gift wrap (kind 1059)**: the in
 - **Size sanity:** the largest routine object is a 4910 query at ~600–700 B wrapped — well under any relay limit, cheap on prepaid data (§20.4), and uniform enough after padding-to-bucket (v2, §6) to resist size fingerprinting.
 - **What is deliberately absent from this registry:** a profile kind, a follow/contact-list kind of our own (NIP-02 suffices and stays client-local in meaning), a reaction/like kind, a public post kind, and a standing-query kind. Each absence is a design decision made earlier in this document; the registry's silences are as normative as its rows.
 
-*With §33, every object named in §§1–32 has a wire representation, a retention class, and a versioning rule. The specification is closed; what remains is code.*
+*With §33, every object named in §§1–32 has a wire representation, a retention class, and a versioning rule. The v0 specification is closed; what remains is code. The v2 group and persona layers add four further inner kinds (4930–4933) specified in §36.4, registry-complete now so no number is ever mutated, but built only when those layers ship.*
 
 ---
 
@@ -1166,3 +1166,85 @@ A fresh end-to-end audit of all deliverables (design §§0–34, mockup, build l
 **Meta-observation for this pass:** the previous audit (§16) found tensions in the *design's ideas*; this one found defects in the *design's plumbing and its silences* — the graph published by accident (F1), the identifier that traces the path (F2), the group that can't legally speak (F9), the child the document never imagined (F13). Idea-audits and plumbing-audits find different bugs; the project should institutionalize both, per release, forever.
 
 **Disposition roll-up (as of the current revision).** *Resolved in spec and/or build list:* F1 (private vouches, Gate 3), F2 (route-token blinding, Gate 4), F3 (randomized wrapper timestamps, §33.4), F4 (charter-pointer vs. cell-id disambiguated, §30.2), F5 (stamp field removed), F6 (probe resistance, M5-T3), F9 (group-as-respondent — kinds 4911 + `grp`-tagged 4912, §33.3; spec-complete, implemented only when groups ship in v2), F10 (porch device key, M7-T1), F11 (terms as coded predicates, kind 4927), F14 (dual-track license, §26.3 + M0-T0). *Posture stated, full design cycle deferred:* F13 (minors — README/SECURITY). *Documented-and-mitigated, deeper work deferred:* F7 (invite-tree capture), F8 (porch metadata observation), F12 (store migrations — TESTING/M3), F15 (npm scope — handled), F16 (claims discipline — process control). Every specification-level and plumbing defect (F1–F6, F9–F12, F14) is now closed in the spec; what remains open is one deferred design cycle (F13) and four standing operational residuals (F7, F8, F15, F16), each carrying a stated mitigation. Nothing is lost.
+
+---
+
+## 36. V2 Specification: The Group Layer and the Persona Layer
+
+Sections §7 and §18 argued for groups and plural personas conceptually; this section specifies them concretely — wire kinds, key management, state machines, and the protocol flows — to the same standard §5, §30, and §33 hold for v0. Both layers share one cryptographic dependency (anonymous credentials), so they are specified together and, per the build list, built together. Everything here is **v2**: it is registry-complete and flow-complete now so nothing mutates a kind number later, but none of it ships in v0.
+
+### 36.1 Shared foundation: the credential engine
+
+Personas (§36.3) and the anonymous rendezvous (§17.4) both need the same primitive, so it is specified once here and both layers consume it.
+
+**Scheme.** BBS+ signatures over the BLS12-381 curve (the mature, audited choice with multiple production libraries and an active IETF draft). A credential is a BBS+ signature by an *issuer* over an ordered set of messages (attributes); the holder can later produce a zero-knowledge **presentation** that proves a signature exists over the committed attributes while selectively disclosing, or proving predicates over, only some of them — revealing nothing else, and unlinkable across presentations.
+
+**Attributes in a Weft vouch credential** (the messages signed): `subject_commitment` (a Pedersen commitment to the subject's root secret, so the holder can prove they are the subject without revealing which key), `tier` (1/2/3), `ctx` (context code), `issued_epoch`, `expiry_epoch`, `issuer_scope_tag` (a tag identifying the issuer's set — cell or region — *without* identifying the issuer). This is the credential form of the 4902 attestation (§33.3): a plaintext 4902 is delivered privately for named use; its BBS+ form is issued for anonymous use. One vouch, two representations, same underlying act.
+
+**k-show enforcement (bounded plurality, §18.2).** Each presentation includes a **nullifier** = `PRF(root_secret, issuer_id ‖ epoch ‖ show_index)` with `show_index ∈ {0…k−1}`. Presenting more than k times in an epoch forces reuse of a `show_index`, producing two presentations with the same nullifier — a collision anyone can detect, and (because the nullifier construction is the standard double-spend-style trapdoor) the collision *deanonymizes the over-spending root*. Cheating is self-incriminating; honest use within k is fully unlinkable. Default k is a cell-charter constant (§18.6), initial value 3 per quarter-epoch.
+
+**Scoped pseudonyms / accountability nullifiers (§18.2).** For a given scope (a group or rendezvous), a persona's stable identifier is `scope_nym = PRF(root_secret, scope_id)` — deterministic within the scope, unlinkable across scopes, and provably bound to a valid credential at first presentation. Ejection names the `scope_nym`; the root cannot mint a second face for that scope because the derivation is deterministic and re-showing there collides. This is the same nullifier machinery as k-show, keyed by scope instead of show-index.
+
+**Epoch clock.** Epochs are global, coarse (quarter-length by default), and derived from wall-clock date — no coordination needed. Credentials carry `expiry_epoch`; presentations are rejected past it; renewal re-issues against the still-valid underlying vouch (§18.2's revocation-by-non-renewal).
+
+**Issuance flow.** (1) Subject sends the issuer a **credential request** (new inner kind **4930**) containing the blinded `subject_commitment` and requested attributes. (2) Issuer, if willing (this is just the anonymous form of vouching, so the same social judgment applies), returns a **credential issuance** (**4931**) with the BBS+ signature. (3) Subject verifies and stores it locally; it never touches a relay in either direction beyond the wrapped delivery. Revocation reuses the existing **4903 void** against the credential's revocation handle (a hash), so a subject checks non-revocation the same way it checks a plaintext vouch.
+
+### 36.2 The group layer
+
+A **group** is a durable, consented, self-governing channel with a charter. v0 already defines its skeleton — charter (4900), consent receipt (4922), group message (4920), key rotation (4921), ejection (4904), and the group-as-respondent kinds (4911, `grp`-tagged 4912). §36.2 completes it.
+
+**Membership and identity inside a group.** A member is present in a group under a **scope_nym** (§36.1) for that group's `scope_id` = the genesis charter id. This is the pivotal design choice: **group membership is pseudonymous by default** — you are "a vouched member, this face" — and a member may *optionally* reveal their real identity to the group (or to specific members) through the ordinary consent handshake (§5) run pairwise inside the channel. Governance (ejection, jury service, sponsorship) operates entirely on scope_nyms and therefore needs no real names, which is exactly what lets ejection stick without anyone learning who was ejected (§18.2).
+
+**Joining.** (1) A prospective member obtains an invite to the group (the §30 token, whose `chp` names the group's current charter). (2) They present, via a **group join request** (inner kind **4932**), a credential presentation proving "I hold a valid, unexpired vouch within this cell's issuer scope" (§36.1) plus their fresh `scope_nym` for this group. (3) A charter-designated **steward or greeter** verifies the presentation and the non-collision of the scope_nym, then issues a **membership grant** (**4933**): the current group key wrapped to the joiner, plus the joiner's scope_nym recorded in the group's membership roster (itself a group-key-encrypted 4920-class record, never public). (4) The joiner signs a **4922 consent receipt** over the charter. Consent precedes key delivery, mirroring v0's consent-before-existence.
+
+**Messaging.** Group messages are **4920**, encrypted under the current group key, published with the hashed-channel `h` tag members subscribe to. Sender is identified inside the ciphertext by scope_nym, so a relay sees only "traffic on channel `h`," never who or how many. Media in groups uses the §34 pointer (4926) with the blob key wrapped under the group key.
+
+**Group key management and the MLS transition.** Two regimes, switched by size (§9.1):
+- **Small groups (≤150 members): sender-keys with naive rotation.** A single symmetric group key; each member also holds a per-member wrapping key established at join. Rotation (**4921**) publishes the new group key wrapped once per *remaining* member — O(n) ciphertexts, fine at Ostrom scale. This is the v2-initial implementation.
+- **Large groups (>150): MLS (RFC 9420).** The group becomes an MLS group; ratchet-tree operations give O(log n) rotation, forward secrecy, and post-compromise security. The transition is a charter-flagged migration: the group publishes an MLS `Welcome` to current members and thereafter uses MLS `Commit` messages (carried inside 4921) for all membership changes. MLS's own epoch/leaf model absorbs join/remove/rotate; Weft's 4921 becomes a thin envelope around MLS handshake messages. Groups that never cross 150 never pay MLS's complexity — the sociology and the cryptography agree again (§9.1).
+
+**Ejection (sanction = key rotation, §7).** (1) Per the charter's rule (e.g., 3-of-5 stewards, or a jury verdict), the stewards publish a **4904 ejection attestation** naming the ejected `scope_nym`, the charter clause, and an evidence *hash* only. (2) Immediately a **4921 rotation** issues a new group key wrapped to every member *except* the ejected scope_nym. (3) The ejected member retains old messages they already hold (no reaching into devices) but receives nothing further and cannot rejoin: their scope_nym for this group is deterministic and now known-ejected, and re-presenting a credential yields the same nym, which the roster rejects. The ban holds against someone the group never identified.
+
+**Charters and amendments.** The **4900 charter** carries: human-readable rules (≤6 lines by UX convention), the steward pubkey set, the amendment rule (e.g., "key rotation of governance requires m-of-n stewards"), the ejection procedure, the chosen embedding model (§19.3), media policy (§34.4), and the credential constants (k, epoch length). Amendments chain via `prev`; the **cell id is the genesis charter id** (§30, F4). A charter amendment that changes governance keys is itself an m-of-n-signed event, so admin capture (§7) requires compromising the threshold, not one account.
+
+**Group-as-respondent (F9, completing §33.3).** A greeter authorized in the charter publishes a **4911 group-interest declaration** (the group's declared-interest embeddings + the list of scope_nyms authorized to answer). An authorized member's client, on a matching query, emits a `grp`-tagged **4912** carrying a group-scoped credential presentation ("this reply speaks for {cell_id}, and the answerer is an authorized member") without revealing which member. The seeker's handshake then runs against the group: the reveal unmasks "a member of {group}, per charter" (asymmetric terms, §5), and only a subsequent pairwise handshake inside the group — at the member's option — attaches a personal identity.
+
+**Group governance-as-service (§7's federated moderation).** A group may **subscribe** to another group's ejection-attestation stream: a **moderation subscription** (local config, not a wire kind) that treats another cell's signed 4904s as weighted input, per §7's "chosen, plural, fireable" rule. Attestations are weighted by the subscriber's trust in the issuer and never summed into a global score — the same discipline as vouches (§35 F1's sibling concern).
+
+### 36.3 The persona layer
+
+A **persona** is an unlinkable secondary self carrying anonymous proof of backing (§18). The credential engine (§36.1) is its whole cryptographic basis; §36.3 specifies lifecycle and wire.
+
+**Derivation.** Persona keys are hardened-derived from the root: `persona_root = HKDF(root_secret, "weft-persona" ‖ persona_index)`. Siblings and root are cryptographically unlinkable; one social-recovery backup of the root (§9.2) reconstructs every persona by re-deriving indices. The device stores the persona index list locally and nowhere else — no persona directory exists, including in backups (Shamir shares reconstruct the root; derivation reconstructs the selves; the shares reveal neither, §18.5).
+
+**Standing (inherited legitimacy).** A persona holds no plaintext 4902 vouches (those would name its subject and leak the link). Instead the root, using its *own* real vouches, issues the persona **anonymous credentials** (§36.1) it can present as "backed by a vouched member of this network/cell" without naming the backer or the root. Bounded by k-show: a root can back at most k active personas per epoch (default 3/quarter), and over-spending self-incriminates. A fresh persona therefore enters cold — "a vouched member, identity sealed" — and cannot ride the root's contact graph (that would be linkage): it earns its *own* graph from people who know only the persona, at which point it is simply an identity whose origin never mattered (§18.3's graduation).
+
+**Presentation in the wild.** When a persona asks, matches, or joins a group, its trust line is the credential presentation, not a named chain: match cards show "a vouched member of this community — identity sealed" (already the anonymous-match copy in §14/UX §12). Inside a group it is a scope_nym (§36.2). Everything else — querying, the consent handshake, messaging — is identical to the primary self's flows; the persona is a full client identity, just one whose backing is proven anonymously.
+
+**Lifecycle and hygiene (wire + UX).** Creation is a settings action (never mid-flow, to avoid cross-contamination): "start a separate self" → derive the next persona index → request anonymous credentials from the root against the root's own vouches (4930/4931, §36.1) → open the persona in a **visually distinct shell** (accent color derived from the persona key, so the user always knows which self is speaking — the #1 practical linkage risk is human error, §18.5). The creation flow shows the §18.5 warning verbatim: *the network can't link your selves; your habits can.* Persona-scoped interest lists carry an **overlap detector**: if a persona's ask closely matches one from another self, the client warns ("this closely matches an ask from your main self — that similarity is linkable") before sending. Personas live behind a separate unlock by default (the compartment-safety concern of §18.5 / §17.6's duress residual).
+
+**Revocation.** Persona standing is only as durable as the underlying vouch: when a backer revokes the root's vouch (4903 void), the anonymous credentials leaning on it fail to renew at the next epoch (§36.1), and the persona silently loses standing — without anyone learning the persona existed (§18.2).
+
+**Residuals restated (honesty, §18.5).** No key derivation defeats behavioral linkage: stylometry, timing correlation, rare-interest fingerprinting, and same-device/IP correlation remain the user's responsibility, mitigated by warnings and the overlap detector, not eliminated. A persona used over the same home connection as the primary is linkable *to that connection* by a network observer — an honest dependency on transport-level tools (Tor-class), out of scope of the routing layer. These are stated at persona creation, not buried.
+
+### 36.4 Registry additions (extends §33.3)
+
+| Kind | Name | Class | Contents & rules | Implements |
+|---|---|---|---|---|
+| 4930 | **Credential request** | E | Blinded `subject_commitment` + requested attributes, wrapped to the issuer. The anonymous form of asking to be vouched. | §36.1 |
+| 4931 | **Credential issuance** | D (delivery) / cached by subject | BBS+ signature over the attribute set, wrapped to the subject. Never public. | §36.1 |
+| 4932 | **Group join request** | E | Credential presentation proving in-scope backing + the joiner's `scope_nym` for this group, wrapped to a steward/greeter. | §36.2 |
+| 4933 | **Membership grant** | D | Current group key (or MLS `Welcome`) wrapped to the joiner + roster update; issued after 4932 verifies. | §36.2 |
+
+*Notes.* All four ride the standard 1059 gift wrap with randomized `created_at` (§33.4, F3). None links two pubkeys in plaintext (§33.4's social-graph rule): 4930/4931 carry commitments and blinded proofs; 4932 carries a scope_nym and a zero-knowledge presentation; 4933 carries a wrapped key. The credential presentations inside 4912 (group reply), 4932 (join), and rendezvous entry (§17.4) are the *same* object shape — one verifier, three call sites. Existing kinds are unchanged; 4911/4920/4921/4922/4904/4900 already carry the group layer, and 4902's BBS+ form (§36.1) reuses the vouch kind rather than adding one.
+
+### 36.5 The v2 invariant check
+
+Both layers are audited against the five invariants (§9.4, §17.6, §18.6) exactly as the constitution (§26.1) requires:
+1. **Encryption layered by lifetime** — credentials are durable-but-private (subject-held), group keys rotate on ejection, presentations are ephemeral. Holds.
+2. **Persistence inversely proportional to sensitivity** — no credential, roster, or membership fact is ever public; only hash-referencing voids and the `h`-tagged ciphertext of group traffic touch relays. Holds, and extends F1's social-graph rule to group membership.
+3. **Scaling edge-bounded** — group messaging is O(group size) by nature, bounded by Ostrom-scale charters and MLS's O(log n) beyond 150; discovery (group-as-respondent) inherits v0's fan-out×TTL bound. Holds.
+4. **Attribute nothing by default** — group membership is pseudonymous (scope_nyms), personas are anonymous by construction, identity enters a group only by a member's own pairwise reveal. Holds, and arguably strengthens the invariant.
+5. **Plurality bounded, accountability scoped** — this is the pair of layers that finally makes invariant 5 *enforceable in code* (it was declared honestly unenforceable in v0, §18 / SECURITY): k-show bounds plurality, scope_nyms scope accountability, ejection sticks. Invariant 5 goes live here.
+
+The layers add no new relay-visible linkage, introduce one well-audited cryptographic dependency (BBS+/BLS12-381), and turn the one invariant v0 could only promise into one the code enforces.

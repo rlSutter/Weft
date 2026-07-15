@@ -58,7 +58,7 @@ Four tests encode invariants the design cannot be shipped without. They live und
 **Assertion:** In a sim scenario, two non-adjacent nodes on a query's path record every wrapper field they observe for the query and its reply. The intersection of identifying values across the two recorders is **empty**: per-edge route tokens (`rt`) differ at every hop; no queryId ever appears in wrapper plaintext; no ephemeral pubkey re-uses across hops.
 **Why:** a plaintext queryId visible at every hop lets colluding non-adjacent nodes trace the full path, partially defeating origin ambiguity (DD §35 F2). Adversary A2′ in `SECURITY.md`. Route-token blinding is the fix; this gate proves it.
 
-**Rule:** **any** of the four gates failing blocks the release, regardless of how much else is green. Fable reviews any change to `core/routing`, `core/handshake`, or `core/invite` specifically to confirm the gates remain intact — and reviews any modification to these test files as a security-relevant change (`SECURITY.md` § *Review*).
+**Rule:** **any** of the four gates failing blocks the release, regardless of how much else is green. (The v2 group/persona layers add **gates 5 and 6** — *plurality is bounded* and *accountability is scoped* — specified in build-list M13-T1; they become unwaivable for any release containing those layers. They do not exist in v0 because the layers don't.) Fable reviews any change to `core/routing`, `core/handshake`, or `core/invite` specifically to confirm the gates remain intact — and reviews any modification to these test files as a security-relevant change (`SECURITY.md` § *Review*).
 
 ---
 
@@ -147,4 +147,6 @@ Manual tests: follow `docs/manual-tests.md`.
 
 ## What is deliberately not tested
 
-Consistent with build-list §13 (deferred features), v0 has no tests for: personas, group channels, MLS, beacon publishing, push notifications, LSH private matching, anonymous credentials, media/blobs, standing-ask rhythm, escrow. Their absence is not a testing gap; they are not built. When any of these arrives in v2, its tests arrive with it and this document grows a section.
+Consistent with build-list §13 (deferred features), v0 has no tests for: personas, group channels, MLS, beacon publishing, push notifications, LSH private matching, anonymous credentials, media/blobs, standing-ask rhythm, escrow. Their absence is not a testing gap; they are not built.
+
+The **group and persona layers are now fully specified** (DD §36) with their own build appendix (build-list §16, M9–M13) and their own acceptance tests defined there — including v2 release gates 5 and 6. Those tests arrive with the code when the layers are built; until then this document's v0 scope stands, and the v2 test sections will be expanded here at that time.

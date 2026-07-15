@@ -352,3 +352,54 @@ UI is build-list milestone **M6** and depends on engines M1–M5. Recommended sc
 ### 24. For the human designer — where judgment is yours
 
 This spec pins the *invariants* (the five laws, the emotional intents, the safety-critical copy, the token system). It deliberately leaves you room on: exact micro-copy tone within the voice rules; illustration/iconography beyond the Seal (keep it minimal); the precise ripple/dot aesthetic; onboarding pacing; and how Steward mode (v2) grows. When you change something, test it against the one sentence (§1) and the emotional table (§4). When Claude Code changes something, it must not touch anything with an acceptance checkbox without a human sign-off — those encode either safety (consent-before-key, invisible Pass, impersonation handling) or the product's soul (no feed, trust-as-sentences, calm-empty).
+
+---
+
+## Part VII — V2 UX Addendum (group, persona, steward surfaces)
+
+Specified now for continuity with DD §36 and build-list §16; **not built in v0.** The mockup (`weft-mockup.html`) already renders these surfaces — this addendum is their normative home, so when M11/M10/steward-mode land they build to spec rather than to the mockup's sketch. Everything here inherits Parts I–VI (the five laws, tokens, voice rules, accessibility).
+
+### 25. Persona surfaces (DD §36.3, build-list M11-T3)
+
+**DESIGN.** A persona must *feel* like a different room the moment you enter it, because the single largest linkage risk is the human forgetting which self is speaking (DD §18.5). The shell re-tints; the persona's standing reads as anonymous ("a vouched member, identity sealed") not as a lesser account; and the honest warning that habits can link what the network cannot is delivered once, plainly, at creation. Personas are created only from settings, never mid-flow, so a self is never started by accident inside an ask.
+
+**BUILD.**
+- **Persona pill** (top of Home): shows the active self; tap → persona sheet. Omitted entirely in v0.
+- **Persona sheet:** list of selves (main + any personas); "Start a separate self" creates one. On the first creation, show the verbatim warning: *"The network can't link your selves. Your habits can — the same rare interests, the same phrasing, the same hours of the day. Keep this self's world separate."*
+- **Shell re-tint:** switching to a persona re-tints the whole frame (accent derived from the persona key — the quiet/plum token set in the mockup CSS). Under reduced-motion, cross-fade rather than animate.
+- **Anonymous standing card:** a persona's Home shows its standing as a trust-toned sentence, e.g. *"Carries anonymous proof: vouched by someone in this network — usable {k} times this {epoch}, never naming who."* Never a score, never the backer's name.
+- **Overlap detector:** before sending a persona's ask, if it closely matches another self's declared interest or recent ask, warn: *"This closely matches an ask from your main self — that similarity is linkable. Send anyway?"* One confirm.
+- **Separate unlock:** personas sit behind their own unlock by default (compartment safety, DD §18.5 / §17.6).
+- Acceptance: switching selves re-tints and never shares contacts/asks/channels; the overlap detector fires on a near-duplicate; first creation shows the warning; a persona never displays a numeric standing or the backer's identity.
+
+### 26. Group surfaces (DD §36.2, build-list M10)
+
+**DESIGN.** A group is a front porch, then a room. Joining is consenting to house rules (the charter) *before* you get the key — the group mirror of consent-before-existence. Inside, you are a pseudonymous member by default; revealing your real name to the group (or to one member) is an ordinary, optional consent handshake, never automatic. Ejection, from the ejected side, is plain and quiet — no public shaming surface exists because there is nowhere for one to be.
+
+**BUILD.**
+- **Charter porch (join):** one scrollable card, ≤6 lines of house rules + steward names, button **Agree & join**. The charter-consent (4922) and credential presentation happen beneath the tap. A holder without a valid in-scope credential sees a calm, non-danger *"This group is for vouched members of {cell}. You'll need a vouch from within it to join."*
+- **Group conversation:** the plain thread (Part IV §13), with a rough member-count band (never exact-to-the-person for small groups) and members shown by chosen display-name-within-group, defaulting to their scope-pseudonymous handle until they reveal.
+- **Reveal-to-group / reveal-to-member:** an optional action running the §5 handshake pairwise inside the channel; until used, a member is "a vouched member, this face."
+- **Group-as-respondent match:** when a match is a group (DD §36.2), the match card reads *"a group — {rough size}, per {charter}"* with the amber trust line *"a vouched member of {group} answered."* The reveal shows group membership; a personal identity only appears if a later pairwise handshake is run.
+- **Ejection (ejected view):** the conversation grays out with *"This group has closed its door to you."* One **OK**. No appeal surface, no public record shown.
+- Acceptance: join shows the charter before any key is delivered; a non-vouched user gets the calm not-danger message; group matches never display a member's identity pre-reveal; the ejected view is plain and offers no shaming or appeal surface.
+
+### 27. Steward mode (DD §36.2, §29; replaces Part IV §16's stub)
+
+**DESIGN.** A working surface for stewards: cell health described in plain-language dials (never raw surveillance metrics), gentle nudges, the weekly ask prompt, the charter and its amendment controls, and a plain succession note. Health is computed locally from opt-in beacons (v2) — described, never surveilled. Governance actions (ejection, amendment) operate on scope_nyms and require the charter's m-of-n threshold, surfaced as a co-signing flow, never a single-tap power.
+
+**BUILD.**
+- **Health dials:** plain-language rows (asks matched, found-through-friends vs. square, handshakes completed, asks that died, members active) — words and arrows, not raw numbers beyond rough bands. Caption: computed locally from opt-in beacons, no names, no topics.
+- **Nudges:** e.g. *"{n} members — time for your own mailbox."* Never a badge, never a growth prod.
+- **Weekly ask prompt:** one-tap post to the cell channel.
+- **Charter + amendments:** view the ≤6-line rules; amendments open an **m-of-n co-signing flow** (the action is proposed, other stewards co-sign; a single steward cannot change governance alone — DD §36.2 admin-capture defense).
+- **Ejection flow:** name the scope_nym + clause + evidence hash; requires the charter threshold; on completion, triggers the 4904 + 4921 rotation beneath the surface.
+- **Succession:** plain note that stewardship is a role, not a person; hand-off is a charter amendment; if all stewards vanish, forwarding/matching/conversations keep working and only governance stalls.
+- Acceptance: no dial exposes a raw per-person metric; amendment and ejection both require the m-of-n co-sign (a single steward acting alone is blocked in the UI as well as the engine); health is labeled as local and opt-in.
+
+### 28. What the v2 UX must not do (extends Part I §3)
+
+- No persona may display a **numeric standing** or its **backer's identity** — standing is an anonymous sentence, bounded by k, and k is shown as a plain count of remaining uses, never as a reputation.
+- No group surface may show an **exact member roster** to non-members, or a **public ejection record** to anyone — membership and sanction are scope-pseudonymous by construction (DD §36.2).
+- Steward mode may not present a **single-steward governance power**: every governance action that the charter gates behind m-of-n must render as a co-signing flow, never a lone button.
+- Switching personas must never **carry state across selves** in the UI (no shared drafts, no shared recents, no shared search) — the shell is a hard compartment.

@@ -68,6 +68,8 @@ Full model: DD §6, DD §16, and DD §35. What follows is the version-controlled
 
 If a task appears to require a KDF, an AEAD, a curve op, or a signature scheme not covered above, **stop and ask** — do not write it, do not import a fourth crypto library without Fable's review. The build-list §2 pinning is a security control.
 
+**v2 addition (specified, not yet built):** the group and persona layers (DD §36) add exactly one primitive — **BBS+ anonymous credentials over BLS12-381** — via a single audited library (`@noble/curves` supplies BLS12-381; the BBS+ presentation layer comes from a maintained implementation or, only under Fable review with published test vectors, over noble's pairing ops). The pairing and the signature scheme are **never** hand-rolled. This is the sole sanctioned crypto addition for v2; anything beyond it re-triggers "stop and ask."
+
 **Key hierarchy (DD §9.1):**
 
 | Key class | Storage | Lifetime | Rules |
@@ -109,7 +111,8 @@ Each of the five design invariants is enforced by specific code paths **and** sp
 - Tested by **Gates 1, 2, and 4**.
 
 ### Invariant 5 — Plurality bounded, accountability scoped
-- Not enforceable in v0 (personas & anonymous credentials are v2, DD §18). v0's honest position: plural personas *do not exist yet*, and creating a "second identity" in v0 is simply a fresh identity with all of a fresh identity's inertness (zero vouches, no reach).
+- **Not enforceable in v0** (personas & anonymous credentials are v2). v0's honest position: plural personas *do not exist yet*, and creating a "second identity" in v0 is simply a fresh identity with all of a fresh identity's inertness (zero vouches, no reach).
+- **Enforceable in v2, now specified** (DD §36, build-list §16). The BBS+ credential engine bounds plurality via k-show nullifiers (a root backing more than k personas per epoch self-incriminates) and scopes accountability via scoped pseudonyms (an ejected `scope_nym` cannot re-enter its scope). When the persona/group layers ship, this invariant is enforced by tests M13-T1 (v2 release gates 5 and 6), not merely promised.
 
 ---
 
@@ -132,6 +135,11 @@ These encode invariants the design cannot ship without. Full specifications live
 - **No plaintext object linking two member pubkeys may ever be published to a relay** — not a vouch, not a contact list, not an edge of any kind. This is a build-list ground rule and a release gate (Gate 3), not a guideline.
 - Vouch attestations (4902) are delivered **wrapped to their subject**, cached locally, and presented as self-contained, offline-verifiable credentials inside match tokens and reveal payloads (DD §9.3, §33.3).
 - Verification = signature check + a lookup for a 4903 **void** of the attestation's hash. A void reveals that an issuer voided *something* — never the subject, never the edge.
+
+### Group & persona confidentiality *(v2 — DD §36)*
+- Group membership is **pseudonymous by default**: members are present under a `scope_nym`, governance operates on nyms, and no plaintext member-to-group or member-to-member link is ever public (extends Gate 3 to the group layer — build-list M13-T2).
+- Personas carry **anonymous credentials**, never plaintext vouches; a persona never rides the root's contact graph; behavioral linkage (stylometry, timing, same-IP) remains the residual DD §36.3 states honestly at persona creation.
+- Credential requests/issuance (4930/4931), join requests (4932), and membership grants (4933) carry commitments, presentations, or wrapped keys — never a plaintext pubkey pair.
 
 ### Route-token blinding *(new — DD §35 F2)*
 - Every 4910 carries a fresh random 16-byte `rt` assigned by the node that handed it to you. Forwarders mint a new token per downstream copy and keep a private swap table (`myToken → upstreamToken, neighbor`).

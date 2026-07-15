@@ -198,3 +198,74 @@ Voice/STT · travel modes (deniable/anonymous), LSH buckets, private matching (D
 - Never store an unencrypted secret key in the store or logs. Ephemeral secrets live only in `queryState`/handshake state and die with the reaper.
 - Public relay etiquette: use 2–3 well-known open relays, keep event sizes ≤ 2 KB, respect NIP-40 by always setting expirations.
 - When a DD section and this list conflict on scope, this list wins; on wire bytes, the DD (§30, §33) wins.
+
+---
+
+## 16. V2 milestones — the group and persona layers (do NOT start until v0 ships)
+
+This appendix specifies the v2 build the way §§4–12 specify v0: ordered milestones, small tasks, acceptance commands. It is inert during v0 — §13's deferral stands, and no v2 task may be started until v0's definition of done (§14) is met and a v0 has actually run on public relays. The full protocol spec these implement is **DD §36**; the shared credential engine (§36.1) is the gate everything else depends on. Same ground rules (§0), same stack (§2) plus one audited addition (BBS+/BLS12-381).
+
+**One new dependency, and only one.** The credential engine needs BBS+ over BLS12-381. Use a single audited library (`@noble/curves` provides BLS12-381 primitives; pair with a maintained BBS+ implementation, or implement the BBS+ presentation layer over noble's pairing ops **only** with Fable review and published test vectors — never hand-roll the pairing or the signature). No second crypto library beyond this. If a task seems to need more, stop and ask.
+
+### Milestone M9 — Credential engine (`core/src/cred`) — the gate
+
+Everything in the group and persona layers consumes this. Build and prove it in isolation first.
+
+**M9-T1 BBS+ core.** Wrap the chosen BBS+ library: `issue(attributes, issuerKey) → credential`, `verify(credential, issuerPub)`, `present(credential, disclosed, predicates) → presentation`, `verifyPresentation(presentation, issuerScope) → bool`. Attributes exactly per DD §36.1 (`subject_commitment`, `tier`, `ctx`, `issued_epoch`, `expiry_epoch`, `issuer_scope_tag`).
+*Accept:* issue→verify roundtrip; a presentation disclosing only `tier` verifies without revealing other attributes; a tampered presentation fails; use the library's own test vectors where they exist; **unlinkability test** — two presentations from one credential share no correlatable field.
+
+**M9-T2 k-show nullifiers.** `nullifier(rootSecret, issuerId, epoch, showIndex)` via the spec's PRF; `detectDoubleSpend(presentationA, presentationB)` returns the deanonymizing witness when `showIndex` is reused within an epoch.
+*Accept:* k distinct shows in an epoch produce k distinct nullifiers and stay unlinkable; the (k+1)th forces a collision; the collision yields the over-spender's identifying witness. k is a config constant (default 3, quarter-epoch).
+
+**M9-T3 Scoped pseudonyms.** `scopeNym(rootSecret, scopeId)` — deterministic within scope, unlinkable across scopes; `proveBoundToCredential(scopeNym, credential)`.
+*Accept:* same root → same nym within a scope, different nyms across scopes; two different roots → different nyms; the binding proof verifies and cannot be forged by a party lacking the credential.
+
+**M9-T4 Epoch clock + issuance flow.** Global quarter-epoch derivation from wall-clock; inner kinds **4930** (request) / **4931** (issuance) wrapped per §33.1; non-revocation check reuses **4903** voids by revocation handle.
+*Accept:* sim: subject requests, issuer issues, subject verifies and stores; a 4903 void against the handle makes the credential fail at the next epoch; expired credentials are rejected.
+
+### Milestone M10 — Group layer (`core/src/group`)
+
+**M10-T1 Charter + membership roster.** Extend the 4900 charter with the full v2 field set (DD §36.2): steward set, amendment rule (m-of-n), ejection procedure, embedding model, media policy, credential constants. Membership roster = a group-key-encrypted record of scope_nyms, never public.
+*Accept:* charter parse/verify; amendment chaining via `prev`; cell id = genesis id; an amendment changing governance keys requires m-of-n signatures (a single-steward amendment is rejected).
+
+**M10-T2 Join flow.** Inner kinds **4932** (join request: in-scope credential presentation + scope_nym) and **4933** (membership grant: wrapped group key + roster update); **4922** consent receipt. Consent precedes key delivery.
+*Accept:* sim: a holder of a valid in-scope credential joins; a holder without one is rejected; a scope_nym collision (already-present or ejected) is rejected; the joiner signs the charter before receiving the key.
+
+**M10-T3 Messaging + small-group keys.** **4920** group messages under the current group key, `h`-tagged; per-member wrapping keys; **4921** naive O(n) rotation. Sender identified by scope_nym inside ciphertext only.
+*Accept:* sim group of 5: all members decrypt; a relay sees only `h`-tagged ciphertext (no member count, no identities); rotation re-keys all remaining members.
+
+**M10-T4 Ejection.** **4904** attestation (scope_nym + clause + evidence hash) per charter rule, immediately followed by **4921** rotation excluding the ejected nym; ejected nym cannot rejoin.
+*Accept:* sim: stewards meeting the m-of-n threshold eject a member; the member decrypts nothing after rotation; a rejoin attempt with the same credential yields the same (now-blocked) scope_nym and fails; a below-threshold ejection attempt does nothing.
+
+**M10-T5 Group-as-respondent (completes F9).** **4911** group-interest declaration (greeter-published; interests + authorized scope_nyms); authorized members emit `grp`-tagged **4912** with a group-scoped presentation; seeker handshake reveals "member of {group}, per charter."
+*Accept:* sim: a query matching the group's declared interests draws a group reply from an authorized member; an unauthorized member cannot emit a valid group reply; the reveal shows group membership, not the member's identity, unless a subsequent pairwise handshake is run.
+
+**M10-T6 MLS transition (large groups).** At >150 members, migrate to MLS (RFC 9420) via a maintained MLS library: charter-flagged migration, `Welcome` to current members, `Commit` messages carried inside 4921 thereafter.
+*Accept:* a group crossing 150 migrates without message loss; post-migration join/remove/rotate use MLS handshake messages; O(log n) rotation verified by counting ciphertexts vs. the naive path. (Large; may split into T6a migration / T6b steady-state.)
+
+### Milestone M11 — Persona layer (`core/src/persona` + `pwa` surfaces)
+
+**M11-T1 Derivation + credential issuance to self.** `personaRoot(rootSecret, index)` (hardened HKDF); local persona index list; the root issues anonymous credentials to each persona against its own real vouches, k-bounded (reuses M9).
+*Accept:* siblings and root are cryptographically unlinkable; one root backup re-derives all personas; a root cannot back more than k active personas per epoch (the (k+1)th self-incriminates via M9-T2).
+
+**M11-T2 Persona as a full client identity.** A persona asks/matches/joins/messages via the identical v0/v2 engines, presenting anonymous credentials instead of named chains; it never rides the root's contact graph.
+*Accept:* sim: a persona completes a full ask→match→handshake with its trust line rendered as "vouched member, identity sealed"; a test asserts no persona operation ever reads or reuses the primary's contacts.
+
+**M11-T3 Persona UX (`pwa`, per UX spec v2 addendum).** Creation in settings only; visually distinct shell (accent from persona key); the §18.5 warning verbatim; persona-scoped interest lists with the **overlap detector**; separate unlock by default.
+*Accept:* creating a persona re-tints the shell; the overlap detector warns before sending an ask that closely matches another self's; personas sit behind a separate unlock; component tests confirm no cross-persona state bleed in the UI.
+
+### Milestone M12 — Rendezvous (anonymous-credential entry, DD §17.4)
+
+**M12-T1 Vouched-anonymous rendezvous.** A rendezvous is a group whose join requires only an in-scope credential presentation (M9) — everyone proven-vouched, no one identified. Reuses M10's join/message/eject with membership = anonymous.
+*Accept:* sim: any holder of a valid network-scope credential enters; entry reveals no identity; ejection by scope_nym still sticks; this is the "least-trust-but-still-vouched" venue §17.4/§20.3 promised.
+
+### Milestone M13 — Invariant re-audit + v2 release gates
+
+**M13-T1 Invariant 5 goes live.** Add release-gate-class tests proving the two properties v0 could only promise: **plurality is bounded** (no root exceeds k active personas without self-incriminating — M9-T2 at the engine, M11-T1 at the layer) and **accountability is scoped** (an ejected scope_nym cannot re-enter its scope — M10-T4). These join the four v0 gates as unwaivable for any release containing the persona/group layers.
+*Accept:* both gates pass; SECURITY.md's invariant-5 row moves from "not enforceable in v0" to "enforced by M9-T2/M10-T4/M11-T1"; TESTING.md gains gates 5 and 6.
+
+**M13-T2 Social-graph audit extended to groups.** Prove no group operation publishes a plaintext pubkey-to-pubkey link: rosters are encrypted, membership is scope_nyms, ejection names nyms, credentials carry commitments. Extends Gate 3.
+*Accept:* scanning MockRelay after a full group lifecycle (create, join×5, message, eject, rotate) yields only `h`-tagged ciphertext, hash-referencing voids, and charter/attestation events carrying no plaintext member pubkeys.
+
+### V2 definition of done
+All M9–M13 acceptance green · the six release gates (four v0 + two v2) pass · a sim group completes create→join→message→eject→rotate with a member count never visible on the wire · a persona completes a full discovery loop with no cross-self linkage · MLS migration verified past 150 members · SECURITY/TESTING/OBSERVABILITY updated so invariant 5 is enforced, not promised · DD §36 and this appendix agree on every kind number and flow.

@@ -73,6 +73,9 @@ core/src/
   handshake/       5-stage consent handshake state machine (kinds 4913–4917)           [M5-T4, DD §5]
   embed/           Embedder interface + StubEmbedder (deterministic, test-only)        [M5-T1, DD §19]
   health.ts        local-only counters, never published                                [M5-T5, DD §10.1]
+  cred/            (v2) BBS+ credential engine — issue/present/verify, k-show           [M9, DD §36.1]
+  group/           (v2) charter, join, messaging, key rotation, ejection, MLS           [M10, DD §36.2]
+  persona/         (v2) hardened derivation, anonymous standing, lifecycle              [M11, DD §36.3]
   index.ts         package barrel
 ```
 
@@ -123,6 +126,8 @@ Empty for now. Per build-list M0 the design document will be copied here once Cl
 ---
 
 ## What is deliberately NOT here (v0 scope)
+
+The v2 **group and persona layers** are now fully specified (DD §36) with their own build appendix (build-list §16, milestones M9–M13) and reserved `core/` folders (`cred`, `group`, `persona`) above — but they hold only `.gitkeep` until v0 ships; the scaffold is complete, the implementation is deferred.
 
 Absent from this scaffold because they are deferred to v2 (build-list §13): voice/STT, travel modes beyond "through friends", LSH-bucketed private matching (DD §17.3–17.5), personas & anonymous credentials (DD §18), rendezvous nodes, group channels & MLS, telemetry beacons, push notifications, escrow, standing asks, model registry, cover traffic, media/blob layer (DD §34), SQLite-WASM. Each has a home in the design doc; none has a folder here yet. The design's own rule applies — every future addition must justify itself against the five invariants (DD §9.4, §17.6, §18.6).
 
