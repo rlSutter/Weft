@@ -1,6 +1,6 @@
 # Testing Weft
 
-How to prove the code does what the design and UX spec say it does. Every task in `weft-build-list.md` has an acceptance test; this document explains the layers those tests live in, the tools that run them, the two **release-gate** tests that encode the design's soul, and the manual protocols that require a human. It is prescriptive: the shape of testing is fixed early because retrofitting test discipline into a running protocol is how subtle privacy bugs get shipped.
+How to prove the code does what the design and UX spec say it does. Every task in `weft-build-list.md` has an acceptance test; this document explains the layers those tests live in, the tools that run them, the four **release-gate** tests that encode the design's soul, and the manual protocols that require a human. It is prescriptive: the shape of testing is fixed early because retrofitting test discipline into a running protocol is how subtle privacy bugs get shipped.
 
 Testing is co-owned with **Fable**, who reviews test coverage and can require additional tests before a phase is released.
 

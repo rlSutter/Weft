@@ -219,7 +219,8 @@ Acceptance:
 Reads: `activeMatch`. Triggers: `intentPing`, `termsResponse`, reveal handshake (DD §5, build M5-T4), `pass` (local only).
 
 Masked state:
-- Card: avatar "?", title *"Someone, a few hops away"*, descriptor line (group size / cadence / level / region — whatever the match token carries, all non-identifying).
+- Card: avatar "?", title *"Someone, a few hops away"*, descriptor line (level / region — whatever the match token carries, all non-identifying).
+- **v0 scope (DD §35 F9):** v0 matches are **person-to-person only**. The "a small group" chip may be *offered* as a preference, but a v0 build must not emit or render a group-as-respondent match — group replies (kind 4911 / `grp`-tagged 4912) are v2. The "5 people, meets monthly" group descriptor seen in the mockup is a v2 surface; in v0 the descriptor never claims to be a group.
 - **Trust line** (trust card + Seal): *"Arrived through people {Name} trusts. Their endorsements will be checked the moment names unlock."* For distant/anonymous matches: *"A vouched member of this community — identity sealed."* Distant = cooler tone, **never danger red** (distance is information, not threat).
 - **Terms card**: toggles for each shareable attribute (name, vouches, city…), defaulting to the user's offer. Copy header: *"If you both agree, you exchange — at the same moment, or not at all:"*
 - Buttons: `primary` **Connect** (→ intent ping / await mutual); `quiet` **Pass**. Sub-line under Pass (normative): *"Passing is invisible. The protocol has no 'no' — silence is indistinguishable from an ask that faded."*

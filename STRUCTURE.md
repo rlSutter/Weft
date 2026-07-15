@@ -15,6 +15,9 @@ Weft/                       (this folder)
   weft-overview.md
   weft-mockup.html          UI visual reference
   weft-mockup.jsx           UI visual reference (React)
+  LICENSE                   dual-track licensing explainer
+  LICENSE-APACHE-2.0        full text (core, sim, docs)
+  LICENSE-AGPL-3.0          full text (pwa, porch)
   STRUCTURE.md              this file
 
   weft/                     application scaffold
