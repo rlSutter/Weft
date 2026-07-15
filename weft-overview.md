@@ -24,7 +24,7 @@ Weft starts from a different question: what if social connection worked like ema
 
 **It carries any medium — after you've both said yes.** Once you're connected, share photos, voice notes, video, and long writing freely, end-to-end encrypted, with location metadata stripped by default. You can even ask *with* media — photograph a mystery plant and ask "who else grows this?" — and only the photo's mathematical meaning travels the network; the image itself never leaves your phone until you choose to share it with someone you've matched. What media never becomes is a broadcast: there are no stories, no reels, no gallery for strangers.
 
-**It lets communities run themselves.** Groups have short, human-readable house rules you agree to at the door — written by the group, not by a trust-and-safety department on another continent. A group that governs itself badly loses members to a better one, which is more accountability than any platform has ever faced.
+**It lets communities run themselves.** Groups have short, human-readable house rules you agree to at the door — written by the group, not by a trust-and-safety department on another continent. Inside a group you're a vouched member without being a named one: you can take part as a face the group trusts and reveal your real identity only when *you* decide to, to the whole group or to one person. And a group that governs itself badly loses members to a better one, which is more accountability than any platform has ever faced.
 
 **It stays out of your pocket and out of your data.** No ads, ever — the servers involved are dumb encrypted mailboxes that can't read anything, so there is nothing to sell. Anyone can run one for about the cost of a coffee a month. The app is designed to be *comfortable closed*: its only measure of success is whether you found your people, never how long you stared at it.
 
@@ -36,6 +36,7 @@ Weft starts from a different question: what if social connection worked like ema
 - **No algorithmic discovery.** Weft will never say "people also liked…" It doesn't know what you like. It knows what you *asked*, because you said it, on purpose.
 - **No rescue from an empty room.** Weft works in proportion to your community using it — it's designed to be adopted by real communities (a club, a congregation, a mutual-aid network) rather than by isolated individuals one at a time.
 - **No central police.** There's no corporation to appeal to and no global ban button. Communities set and enforce their own rules; serious crimes remain matters for actual law enforcement, with tools to preserve evidence. This is a genuine tradeoff, chosen openly: the same design that means no one can read your messages means no one can scan everyone's messages.
+- **Not for minors — yet.** Weft is built for adults choosing to meet other adults. Verifying someone's age conflicts with an identity system that deliberately holds no documents, and the design work for a safe experience for under-18s hasn't been done. So for now it isn't offered to minors, and communities that involve young people shouldn't adopt it until that work lands. This is a stated gap, not an afterthought.
 
 ## How it compares
 
