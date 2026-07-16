@@ -10,7 +10,7 @@
     "weft-porch": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc --noEmit -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",
     "lint": "eslint src"
