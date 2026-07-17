@@ -1,1 +1,1 @@
-export {};
+export * from './mock-relay';
