@@ -97,6 +97,9 @@ importers:
       idb:
         specifier: ^8.0.0
         version: 8.0.3
+      nostr-tools:
+        specifier: ^2.7.0
+        version: 2.23.12(typescript@5.9.3)
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
