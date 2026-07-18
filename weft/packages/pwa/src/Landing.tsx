@@ -93,9 +93,24 @@ function NavLink({
   children: React.ReactNode;
   external?: boolean;
 }): JSX.Element {
+  // Intercept in-page anchor links (#what, #how, #free, etc.) so they
+  // scroll to the section without touching window.location.hash — which
+  // would otherwise switch the app's route (unknown hashes default to
+  // 'home', which routes back to Onboarding / Home depending on state).
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (external) return;
+    if (!href.startsWith('#')) return;
+    const id = href.slice(1);
+    const el = document.getElementById(id);
+    if (el) {
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
   return (
     <a
       href={href}
+      onClick={handleClick}
       target={external ? '_blank' : undefined}
       rel={external ? 'noreferrer noopener' : undefined}
       style={{ color: tokens.muted, textDecoration: 'none' }}
