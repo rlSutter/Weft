@@ -287,7 +287,7 @@ function RedeemScreen({ token }: { token: string }): JSX.Element {
 
 function Home({ onNav }: { onNav: (r: import('./context').Route) => void }): JSX.Element {
   const { state, identity } = useWeft();
-  if (!state || !identity) return <p>Loading…</p>;
+  if (!state || !identity) return <p style={{ color: tokens.muted }}>Loading your Weft…</p>;
 
   return (
     <>
@@ -471,7 +471,7 @@ function MatchScreen({ queryId, onBack }: { queryId: string; onBack: () => void 
   const { client, state } = useWeft();
   const [passed, setPassed] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  if (!state || !client) return <p>Loading…</p>;
+  if (!state || !client) return <p style={{ color: tokens.muted }}>Connecting to relays…</p>;
 
   const match = state.activeMatches.find((m) => m.queryId === queryId);
   const revealed = state.revealed.find((r) => r.matchId === queryId);
@@ -594,10 +594,27 @@ function RevealCard({
 function ChatScreen({ peerPubkey, onBack }: { peerPubkey: string; onBack: () => void }): JSX.Element {
   const { client, state } = useWeft();
   const [draft, setDraft] = useState('');
-  if (!state || !client) return <p>Loading…</p>;
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  if (!state || !client) return <p style={{ color: tokens.muted }}>Connecting to relays…</p>;
 
   const convo = state.conversations.find((c) => c.peerPubkey === peerPubkey);
   if (!convo) return <p>Conversation not found</p>;
+
+  const send = async (): Promise<void> => {
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      await client.sendMessage(peerPubkey, text);
+      setDraft('');
+    } catch (e) {
+      setSendError((e as Error).message ?? 'send failed');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <>
@@ -625,17 +642,20 @@ function ChatScreen({ peerPubkey, onBack }: { peerPubkey: string; onBack: () => 
           </div>
         ))}
       </div>
-      <TextInput placeholder="Message…" value={draft} onChange={setDraft} />
-      <PrimaryButton
-        disabled={draft.trim().length === 0}
-        onClick={async () => {
-          const text = draft.trim();
-          setDraft('');
-          await client.sendMessage(peerPubkey, text);
-        }}
-      >
-        Send
+      <TextInput
+        placeholder="Message…"
+        value={draft}
+        onChange={setDraft}
+        onSubmit={() => void send()}
+      />
+      <PrimaryButton disabled={draft.trim().length === 0 || sending} onClick={() => void send()}>
+        {sending ? 'Sending…' : 'Send'}
       </PrimaryButton>
+      {sendError && (
+        <p style={{ color: tokens.danger, fontSize: 13, marginTop: 8 }}>
+          Couldn't send: {sendError}. The message wasn't delivered — try again.
+        </p>
+      )}
     </>
   );
 }
@@ -650,7 +670,7 @@ function InviteScreen({ onBack }: { onBack: () => void }): JSX.Element {
   const [creating, setCreating] = useState(false);
   const [openInvite, setOpenInvite] = useState<{ name: string; url: string } | null>(null);
 
-  if (!state || !client) return <p>Loading…</p>;
+  if (!state || !client) return <p style={{ color: tokens.muted }}>Connecting to relays…</p>;
 
   const create = async (): Promise<void> => {
     if (name.trim().length === 0 || creating) return;
@@ -967,9 +987,25 @@ function ConfirmationCard({
   pending: { iid: string; redeemerName: string; redeemerPubkey: string };
 }): JSX.Element {
   const { client, state } = useWeft();
+  const [working, setWorking] = useState<'confirming' | 'voiding' | null>(null);
+  const [error, setError] = useState<string | null>(null);
   if (!client || !state) return <></>;
   const inviteRow = state.invites.find((i) => i.iid === pending.iid);
   const originalName = inviteRow?.sentTo ?? 'someone';
+
+  const decide = async (yes: boolean): Promise<void> => {
+    if (working) return;
+    setWorking(yes ? 'confirming' : 'voiding');
+    setError(null);
+    try {
+      await client.confirmInvite(pending.iid, yes);
+    } catch (e) {
+      setError((e as Error).message ?? 'action failed');
+    } finally {
+      setWorking(null);
+    }
+  };
+
   return (
     <TrustCard>
       <H2>Someone joined with your invite to {originalName}.</H2>
@@ -979,20 +1015,17 @@ function ConfirmationCard({
       <p style={{ color: tokens.muted, fontSize: 12 }}>
         Links travel like postcards, so your vouch waits for your word.
       </p>
-      <PrimaryButton
-        onClick={() => {
-          void client.confirmInvite(pending.iid, true);
-        }}
-      >
-        Yes, that's my {originalName}
+      <PrimaryButton disabled={!!working} onClick={() => void decide(true)}>
+        {working === 'confirming' ? 'Confirming…' : `Yes, that's my ${originalName}`}
       </PrimaryButton>
-      <QuietButton
-        onClick={() => {
-          void client.confirmInvite(pending.iid, false);
-        }}
-      >
-        That's not them
+      <QuietButton onClick={() => void decide(false)}>
+        {working === 'voiding' ? 'Voiding…' : "That's not them"}
       </QuietButton>
+      {error && (
+        <p style={{ color: tokens.danger, fontSize: 13, marginTop: 8 }}>
+          Couldn't reach the relays: {error}. Try again in a moment.
+        </p>
+      )}
     </TrustCard>
   );
 }
@@ -1003,7 +1036,7 @@ function ConfirmationCard({
 
 function WhyItWorks({ onBack }: { onBack: () => void }): JSX.Element {
   const { state } = useWeft();
-  if (!state) return <p>Loading…</p>;
+  if (!state) return <p style={{ color: tokens.muted }}>Connecting to relays…</p>;
   return (
     <>
       <BackButton onClick={onBack} />
