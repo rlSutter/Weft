@@ -65,9 +65,13 @@ class SimplePoolRelay implements Relay {
     if (filter.p) nostrFilter['#p'] = [...filter.p];
     if (filter.ids) nostrFilter.ids = [...filter.ids];
     if (filter.since !== undefined) nostrFilter.since = filter.since;
-    const sub = (this.pool as { subscribeMany: (urls: string[], filters: unknown, opts: { onevent: (e: NostrEvent) => void }) => { close(): void } }).subscribeMany(
+    // nostr-tools 2.23's subscribeMany takes a single Filter object (not an
+    // array). Passing an array silently degrades to a malformed REQ that
+    // some relays (e.g. relay.primal.net) reject and others quietly drop —
+    // caught by weft/packages/porch/scripts/e2e-public-relay.mts.
+    const sub = (this.pool as { subscribeMany: (urls: string[], filter: unknown, opts: { onevent: (e: NostrEvent) => void }) => { close(): void } }).subscribeMany(
       this.urls,
-      [nostrFilter],
+      nostrFilter,
       { onevent: (evt: NostrEvent) => onEvent(evt) },
     );
     return {
