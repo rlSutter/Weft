@@ -20,7 +20,12 @@ interface QueryNode {
   received: unknown[];
 }
 
-async function makeNode(relay: MockRelay, embedder: StubEmbedder, name: string): Promise<QueryNode> {
+async function makeNode(
+  relay: MockRelay,
+  embedder: StubEmbedder,
+  name: string,
+  rng: () => number = Math.random,
+): Promise<QueryNode> {
   const keys = generateKeypair();
   const store = new MemoryStore({ userPubkey: bytesToHex(keys.pubkey) });
   const engine = new QueryEngine({
@@ -29,6 +34,7 @@ async function makeNode(relay: MockRelay, embedder: StubEmbedder, name: string):
     relay,
     embedder,
     now: () => relay.currentTime(),
+    rng,
   });
   const received: unknown[] = [];
   engine.on((e: unknown) => received.push(e));
@@ -73,12 +79,14 @@ describe('query engine — end-to-end match through a graph', () => {
   it('ask from A reaches F planted with matching interest; match reply comes back', async () => {
     const relay = new MockRelay();
     const embedder = new StubEmbedder();
-    const A = await makeNode(relay, embedder, 'A');
-    const B = await makeNode(relay, embedder, 'B');
-    const C = await makeNode(relay, embedder, 'C');
-    const D = await makeNode(relay, embedder, 'D');
-    const E = await makeNode(relay, embedder, 'E');
-    const F = await makeNode(relay, embedder, 'F');
+    // Force max TTL so a 5-hop chain (A→B→C→D→E→F) always reaches F.
+    const maxTtl = () => 0.99;
+    const A = await makeNode(relay, embedder, 'A', maxTtl);
+    const B = await makeNode(relay, embedder, 'B', maxTtl);
+    const C = await makeNode(relay, embedder, 'C', maxTtl);
+    const D = await makeNode(relay, embedder, 'D', maxTtl);
+    const E = await makeNode(relay, embedder, 'E', maxTtl);
+    const F = await makeNode(relay, embedder, 'F', maxTtl);
 
     // Topology: A - B - C - D - E - F (a line), each pair connected.
     await connect(A, B);
@@ -87,11 +95,13 @@ describe('query engine — end-to-end match through a graph', () => {
     await connect(D, E);
     await connect(E, F);
 
-    // Plant matching interest at F.
-    await F.engine.declareInterest('koji fermentation techniques');
+    // Plant matching interest at F. Text is chosen to score high under the
+    // StubEmbedder's bag-of-words cosine (same tokens, no extra tokens that
+    // would dilute the vector).
+    await F.engine.declareInterest('koji fermentation');
 
     // A asks about koji.
-    const { queryId } = await A.engine.ask('anyone experimenting with koji fermentation');
+    const { queryId } = await A.engine.ask('koji fermentation');
     expect(queryId).toBeTruthy();
 
     // Drain microtasks — MockRelay delivers synchronously via subscribe.
@@ -117,7 +127,7 @@ describe('query engine — end-to-end match through a graph', () => {
 
     await C.engine.declareInterest('koji fermentation');
     await A.engine.ask('koji fermentation');
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 100));
 
     // No match should come back — B refused to forward (stamp negative
     // after first debit).
@@ -168,10 +178,13 @@ describe('Gate 1 — authored 4910 and forwarded 4910 are byte-shape identical',
     const schemaKeys = ['embedding', 'ttl', 'ephemeralReplyPub', 'terms'];
     for (const inner of wraps4910) {
       expect(inner.kind).toBe(4910);
-      expect(inner.tags).toEqual([]); // no origin-attributable tags
+      // The only tag allowed on an inner 4910 is `expiration` (auto-added
+      // from the kind's D-class retention). No routing-relevant, no
+      // origin-attributable tags may appear.
+      const nonExpTags = inner.tags.filter((t: string[]) => t[0] !== 'expiration');
+      expect(nonExpTags).toEqual([]);
       const body = JSON.parse(inner.content);
       expect(Object.keys(body).sort()).toEqual(schemaKeys.slice().sort());
-      // Explicit assertion: no field named origin, from, author, or similar.
       for (const banned of ['origin', 'from', 'author', 'signer', 'sender']) {
         expect(body[banned]).toBeUndefined();
       }

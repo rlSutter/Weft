@@ -16,10 +16,13 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@weft/core": "workspace:*"
+    "@weft/core": "workspace:*",
+    "nostr-tools": "^2.7.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

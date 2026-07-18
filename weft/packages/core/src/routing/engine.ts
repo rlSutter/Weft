@@ -423,9 +423,9 @@ export class QueryEngine {
   }
 
   private async emitMatchReply(
-    payload: QueryPayload,
+    _payload: QueryPayload,
     incomingRt: string,
-    _cameFrom: string,
+    cameFrom: string,
     score: number,
   ): Promise<void> {
     const reply: MatchReplyPayload = {
@@ -441,10 +441,13 @@ export class QueryEngine {
       },
       responderEph.secret,
     );
-    // Wrap to the *asker's ephemeral reply pubkey*, tagged with the incoming
-    // rt so the previous hop can look it up.
+    (responderEph.secret as Uint8Array).fill(0);
+    // The reply travels back through the pairwise chain by rt bookkeeping
+    // (DD §35 F2). We wrap to our immediate upstream neighbor (cameFrom)
+    // and tag with the rt that neighbor gave US on the way in — they will
+    // look it up in their reverseRoutes to keep the chain going.
     const nowSec = this.now();
-    const outer = this.wrapWithRt(inner4912, payload.ephemeralReplyPub, incomingRt, nowSec);
+    const outer = this.wrapWithRt(inner4912, cameFrom, incomingRt, nowSec);
     await this.relay.publish(outer, this.relaysToPublish);
   }
 
