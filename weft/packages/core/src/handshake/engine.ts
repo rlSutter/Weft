@@ -70,6 +70,9 @@ interface HandshakeState {
   terms: readonly string[];
   /** Deadline unix seconds — reaper drops stalled state past this. */
   expiresAt: number;
+  /** If the caller pre-supplied identity at initiate() time, we auto-send
+   *  commit as soon as terms are accepted (no round-trip through the UI). */
+  identityForAutoCommit?: IdentityPayload;
 }
 
 export type HandshakeEvent =
@@ -159,11 +162,16 @@ export class HandshakeEngine {
   /**
    * Asker-side: after receiving a match arrival, send an intent ping to the
    * responder's ephemeralReplyPub.
+   *
+   * If `identityForAutoCommit` is supplied, the engine will send our commit
+   * automatically as soon as terms are accepted (4914 arrives) — saves the
+   * caller from having to observe the intermediate stage transition.
    */
   async initiate(
     matchId: string,
     theirEphPub: string,
     offeredTerms: readonly string[] = [],
+    identityForAutoCommit?: IdentityPayload,
   ): Promise<{ myEphPubHex: string }> {
     const myEph = generateKeypair();
     const st: HandshakeState = {
@@ -176,6 +184,7 @@ export class HandshakeEngine {
       myCommitSent: false,
       terms: offeredTerms,
       expiresAt: this.now() + HANDSHAKE_TTL_SECONDS,
+      ...(identityForAutoCommit ? { identityForAutoCommit } : {}),
     };
     this.states.set(matchId, st);
     const myEphPubHex = bytesToHex(myEph.pubkey);
@@ -327,6 +336,10 @@ export class HandshakeEngine {
       return;
     }
     st.stage = 'termsAgreed';
+    // Auto-send our commit if the caller supplied identity at initiate time.
+    if (st.identityForAutoCommit) {
+      await this.sendCommit(st.matchId, st.identityForAutoCommit);
+    }
   }
 
   private async sendCommit(matchId: string, myIdentity: IdentityPayload): Promise<void> {

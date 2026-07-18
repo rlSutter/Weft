@@ -14,6 +14,100 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+*(next phase entries appear here)*
+
+---
+
+## [0.1.0-alpha] — 2026-07-17 — First feature-complete PWA — reviewed by: pending
+
+The PWA is now a real client — no longer a skeleton. Two browser profiles
+can complete the full loop end-to-end: **invite → redeem → confirm →
+declare interests → ask → match → connect → reveal → chat**, all against
+public Nostr relays.
+
+### Added
+- **`weft/packages/pwa/src/weft-client.ts` — `WeftClient` runtime.** Owns
+  the store, relay pool (SimplePool over Damus + nos.lol by default),
+  embedder, and all three engines. Wires their subscriptions and
+  dispatches inbound 1059 wraps to every engine. Exposes a listener-based
+  state that React subscribes to via context. State slices: `asksOut`,
+  `activeMatches`, `revealed`, `impersonationAlerts`, `conversations`,
+  `invites`, `pendingConfirmations`, `interests`, `counters`.
+- **`weft/packages/pwa/src/context.tsx` — `WeftProvider`, `useWeft()`,
+  `useRoute()`.** Hash-based router (`#ask`, `#invite`, `#why`,
+  `#match/:queryId`, `#chat/:peer`, `#i/:token` for invite redemption).
+  Manages identity lifecycle (fresh keygen on onboarding; adopt redeemed
+  keypair on invite path; wipe on reset).
+- **`weft/packages/pwa/src/App.tsx` — real screens.** Onboarding, Home
+  (asks-out, active matches, pending confirmations, impersonation alerts,
+  declared interests, invites-out, conversations, Why-It-Works link),
+  AskScreen (calls `client.ask()`), MatchScreen (masked → Connect/Pass →
+  Reveal → Say hello), ChatScreen (send/receive pairwise messages),
+  InviteScreen (create invite → shareable URL → invites-out list with
+  status), RedeemScreen (parses URL fragment → charter consent → adopts
+  redeemed identity), ConfirmationCard (Alice's "Someone joined with your
+  invite" prompt), WhyItWorks (counters + honest surfaces).
+- **Declared-interests UI** on Home. Type interest, click Add, chip
+  appears; incoming asks match against them. Session-only in the alpha.
+- **Handshake auto-commit.** `HandshakeEngine.initiate()` accepts optional
+  `identityForAutoCommit`. When the terms response arrives, the engine
+  sends our commit automatically without a UI round-trip. Removes a
+  timing race between "advance stage to termsAgreed" and "send commit."
+- **`weft/docs/manual-tests.md`** — Layer-5 manual test protocol per
+  TESTING.md. Test 1 (headless E2E on public relays), Test 2 (two-profile
+  browser flow), Test 3 (three-node porch scenario, deferred to v0.1.1).
+
+### Fixed
+- **`weft/packages/porch/src/index.ts` SimplePool adapter** — passed
+  `[filter]` (array) where nostr-tools 2.23 wants a single `filter`
+  object. Silently broke subscribe on some relays (Primal rejected, others
+  quietly dropped). Caught during the Layer-5 headless run.
+- **`weft/packages/core/src/globals.d.ts`** (Fable Fix 1) — declares
+  ambient `TextEncoder`, `TextDecoder`, `setTimeout`, `clearTimeout` so
+  `@weft/core` type-checks with `lib: ["ES2022"]` + `types: []` intact.
+  Locks in DD §32.4 purity against transitive `@types/node` leakage from
+  vitest's dependency graph. — reviewed by: Fable
+
+### Verified (Layer 5, real infrastructure)
+- **Headless E2E script passes** on `wss://relay.damus.io` +
+  `wss://nos.lol`: invite → redeem → confirm → ask → match → initiate →
+  Pass. Every publish acknowledged 2/2. **Gate 3** (no plaintext 4902) and
+  **Gate 2 initiator side** (zero events after Pass) confirmed on the real
+  wire. Repeatable via `packages/porch/scripts/e2e-public-relay.mts`.
+- **Milestones M0–M8 all shipped.** 145 tests passing (`pnpm -r test`),
+  build clean, lint clean, license CI green. PWA bundle 341 KB / 114 KB
+  gzip.
+
+### Not in this release (honest catalog)
+- **Key storage is plaintext in localStorage.** Alpha testers only.
+  Passphrase-wrapped storage is a v2 IOU.
+- **No key backup UX.** Losing localStorage = losing the identity. Shamir
+  3-of-5 social recovery is a v2 IOU (DD §9.2).
+- **No QR scan.** Invites shared as URLs. `@zxing/browser` is a dep but
+  the scanning UI is unwired.
+- **No push notifications.** UI must be open to receive events.
+- **Declared interests are session-only.** Persistence lands in v0.1.1.
+- **UX §14–15 fidelity is partial.** Design tokens match; animations
+  (ripple, dot pulse, reveal flip) are simpler than the mockup. Full UX
+  pass scheduled for v0.1.1.
+- **Layer 3.5 component tests deferred** — jsdom + `@testing-library/react`
+  not wired. The three safety-critical UI invariants are sim-verified,
+  not UI-verified.
+- **Three-node porch-in-middle manual test deferred** to v0.1.1.
+- **`relay.primal.net` incompatible** with our filter format; not in
+  `DEFAULT_RELAYS`.
+- **Groups, personas, media, voice, beacons, standing asks, real MiniLM
+  embeddings** — all v2 spec-complete but code-absent per build-list §13.
+
+### Files added or substantially changed in v0.1.0-alpha
+- Added: `weft/packages/pwa/src/weft-client.ts`, `weft/packages/pwa/src/context.tsx`, `weft/docs/manual-tests.md`.
+- Substantially rewritten: `weft/packages/pwa/src/App.tsx`, `weft/packages/pwa/package.json` (adds `nostr-tools` dep).
+- Small: `weft/packages/core/src/handshake/engine.ts` (auto-commit path).
+
+---
+
+## [Prior work — pre-alpha]
+
 ### Verified (Layer 5, real infrastructure) — 2026-07-17
 - **Layer-5 manual test passed against public Nostr relays** (`wss://relay.damus.io`, `wss://nos.lol`). Full flow ran in ~35 seconds: Alice creates invite → Bob redeems (4918 wrapped) → Alice confirms (4902 vouch delivered wrapped + 4919 hello) → Alice asks "koji fermentation" → Bob's engine matches → Alice initiates handshake → Alice taps Pass. Every publish acknowledged by both relays (2/2). All assertions passed. Repeatable via `weft/packages/porch/scripts/e2e-public-relay.mts`.
 - **Gate 3 verified on the real wire.** A global subscription monitoring every kind-4902 event on the relays during the run captured zero plaintext vouches from either party. Bob's cached vouch is signed by Alice, verifiable, and lives only in his local store. The design's foundational asymmetry (warp private, weft ambiguous) holds against actual public infrastructure.
