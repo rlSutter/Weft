@@ -12,13 +12,17 @@ import { tokens } from './styles';
 interface LandingProps {
   onStart: () => void;
   onRedeem: (token: string) => void;
+  /** True when the user already has an identity — CTAs say "Back to Weft". */
+  alreadyOnboarded?: boolean | undefined;
+  /** If provided, TopBar shows a "Back to Weft →" button. */
+  onGoHome?: (() => void) | undefined;
 }
 
-export function Landing({ onStart, onRedeem }: LandingProps): JSX.Element {
+export function Landing({ onStart, onRedeem, alreadyOnboarded, onGoHome }: LandingProps): JSX.Element {
   return (
     <div style={{ background: tokens.paper, minHeight: '100vh', color: tokens.ink, fontFamily: tokens.sans }}>
-      <TopBar />
-      <Hero onStart={onStart} onRedeem={onRedeem} />
+      <TopBar onGoHome={onGoHome} />
+      <Hero onStart={onStart} onRedeem={onRedeem} alreadyOnboarded={alreadyOnboarded} />
       <TheProblem />
       <WhatWeftIs />
       <HowItWorks />
@@ -26,7 +30,7 @@ export function Landing({ onStart, onRedeem }: LandingProps): JSX.Element {
       <WhatItDoesnt />
       <HowItStaysFree />
       <Invariants />
-      <FinalCTA onStart={onStart} />
+      <FinalCTA onStart={onStart} alreadyOnboarded={alreadyOnboarded} />
       <TheName />
       <Footer />
     </div>
@@ -37,7 +41,7 @@ export function Landing({ onStart, onRedeem }: LandingProps): JSX.Element {
 // Layout primitives
 // ---------------------------------------------------------------------------
 
-function TopBar(): JSX.Element {
+function TopBar({ onGoHome }: { onGoHome?: (() => void) | undefined }): JSX.Element {
   return (
     <div
       style={{
@@ -46,15 +50,33 @@ function TopBar(): JSX.Element {
       }}
     >
       <Wide>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: tokens.serif, fontSize: 22, fontWeight: 400 }}>Weft</span>
-          <nav style={{ display: 'flex', gap: 20, fontSize: 13 }}>
+          <nav style={{ display: 'flex', gap: 20, fontSize: 13, flexWrap: 'wrap', alignItems: 'center' }}>
             <NavLink href="#what">What it is</NavLink>
             <NavLink href="#how">How it works</NavLink>
             <NavLink href="#free">Free forever</NavLink>
             <NavLink href="https://github.com/rlSutter/Weft" external>
               GitHub ↗
             </NavLink>
+            {onGoHome && (
+              <button
+                onClick={onGoHome}
+                style={{
+                  padding: '6px 14px',
+                  background: tokens.accent,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: tokens.buttonRadius,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Back to Weft →
+              </button>
+            )}
           </nav>
         </div>
       </Wide>
@@ -87,7 +109,7 @@ function NavLink({
 // Sections
 // ---------------------------------------------------------------------------
 
-function Hero({ onStart, onRedeem }: LandingProps): JSX.Element {
+function Hero({ onStart, onRedeem, alreadyOnboarded }: LandingProps): JSX.Element {
   const [tokenText, setTokenText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -131,7 +153,7 @@ function Hero({ onStart, onRedeem }: LandingProps): JSX.Element {
         </p>
         <div style={{ marginTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <BigButton onClick={onStart} primary>
-            Try Weft
+            {alreadyOnboarded ? 'Back to Weft' : 'Try Weft'}
           </BigButton>
           <BigButton onClick={() => document.getElementById('what')?.scrollIntoView({ behavior: 'smooth' })}>
             Read more first
@@ -140,7 +162,7 @@ function Hero({ onStart, onRedeem }: LandingProps): JSX.Element {
 
         <div style={{ marginTop: 40, maxWidth: 620 }}>
           <p style={{ fontSize: 13, color: tokens.muted, marginBottom: 8 }}>
-            <strong>Already got an invite?</strong> Paste the link:
+            <strong>{alreadyOnboarded ? 'Have another invite?' : 'Already got an invite?'}</strong> Paste the link:
           </p>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
             <input
@@ -454,7 +476,7 @@ function Invariants(): JSX.Element {
   );
 }
 
-function FinalCTA({ onStart }: { onStart: () => void }): JSX.Element {
+function FinalCTA({ onStart, alreadyOnboarded }: { onStart: () => void; alreadyOnboarded?: boolean | undefined }): JSX.Element {
   return (
     <Section alt>
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -474,7 +496,7 @@ function FinalCTA({ onStart }: { onStart: () => void }): JSX.Element {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <BigButton onClick={onStart} primary>
-            Try Weft
+            {alreadyOnboarded ? 'Back to Weft' : 'Try Weft'}
           </BigButton>
           <BigButton
             onClick={() => window.open('https://github.com/rlSutter/Weft', '_blank', 'noreferrer')}

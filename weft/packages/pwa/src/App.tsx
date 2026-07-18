@@ -36,23 +36,35 @@ function Shell(): JSX.Element {
   // the redemption flow).
   if (route.name === 'redeem') return <RedeemScreen token={route.token} />;
 
-  // No identity yet, and the user hasn't clicked "Try Weft" — show Landing.
-  // The Landing is a full-bleed marketing page (its own Frame), so return
-  // it directly.
-  if (!identity && !startedOnboarding) {
+  // The About / Landing route is always available — new visitors land here
+  // by default; returning users can revisit via #about.
+  const showLandingAsDefault = !identity && !startedOnboarding;
+  if (route.name === 'about' || showLandingAsDefault) {
     return (
       <Landing
-        onStart={() => setStartedOnboarding(true)}
+        alreadyOnboarded={!!identity}
+        onStart={() => {
+          if (identity) {
+            navigate({ name: 'home' });
+          } else {
+            setStartedOnboarding(true);
+            // Clear any leftover hash so we don't bounce back to about.
+            if (window.location.hash === '#about') {
+              window.location.hash = '#/';
+            }
+          }
+        }}
         onRedeem={(token) => {
           window.location.hash = `#/i/${token}`;
         }}
+        onGoHome={identity ? () => navigate({ name: 'home' }) : undefined}
       />
     );
   }
 
   return (
     <Frame>
-      {!identity && <Onboarding />}
+      {!identity && <Onboarding onBackToLanding={() => setStartedOnboarding(false)} />}
       {identity && client && state && (
         <>
           {route.name === 'home' && <Home onNav={navigate} />}
@@ -87,35 +99,44 @@ function Frame({ children }: { children: React.ReactNode }): JSX.Element {
 // Onboarding
 // ---------------------------------------------------------------------------
 
-function Onboarding(): JSX.Element {
+function Onboarding({ onBackToLanding }: { onBackToLanding: () => void }): JSX.Element {
   const { completeOnboarding } = useWeft();
   const [step, setStep] = useState<'welcome' | 'name'>('welcome');
   const [name, setName] = useState('');
 
   if (step === 'welcome') {
     return (
-      <Card>
-        <H1>Weft</H1>
-        <p>Ask your people. Find your people.</p>
-        <p style={{ color: tokens.muted, fontSize: 14 }}>
-          No account, no password. Just a name your people will recognize.
-        </p>
-        <PrimaryButton onClick={() => setStep('name')}>Continue</PrimaryButton>
-      </Card>
+      <>
+        <BackButton onClick={onBackToLanding} />
+        <Card>
+          <H1>Weft</H1>
+          <p>Ask your people. Find your people.</p>
+          <p style={{ color: tokens.muted, fontSize: 14 }}>
+            No account, no password. Just a name your people will recognize.
+          </p>
+          <PrimaryButton onClick={() => setStep('name')}>Continue</PrimaryButton>
+        </Card>
+      </>
     );
   }
 
   return (
-    <Card>
-      <H2>What should people call you?</H2>
-      <TextInput placeholder="first name is fine" value={name} onChange={setName} />
-      <p style={{ color: tokens.muted, fontSize: 13, marginTop: 12 }}>
-        No account, no password. Just a name your people will recognize.
-      </p>
-      <PrimaryButton disabled={name.trim().length === 0} onClick={() => completeOnboarding(name.trim())}>
-        Continue
-      </PrimaryButton>
-    </Card>
+    <>
+      <BackButton onClick={() => setStep('welcome')} />
+      <Card>
+        <H2>What should people call you?</H2>
+        <TextInput placeholder="first name is fine" value={name} onChange={setName} />
+        <p style={{ color: tokens.muted, fontSize: 13, marginTop: 12 }}>
+          No account, no password. Just a name your people will recognize.
+        </p>
+        <PrimaryButton
+          disabled={name.trim().length === 0}
+          onClick={() => completeOnboarding(name.trim())}
+        >
+          Continue
+        </PrimaryButton>
+      </Card>
+    </>
   );
 }
 
@@ -359,7 +380,7 @@ function Home({ onNav }: { onNav: (r: import('./context').Route) => void }): JSX
         </QuietCard>
       </div>
 
-      <div style={{ marginTop: 32, textAlign: 'center' }}>
+      <div style={{ marginTop: 32, textAlign: 'center', display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
         <a
           href="#why"
           onClick={(e) => {
@@ -369,6 +390,16 @@ function Home({ onNav }: { onNav: (r: import('./context').Route) => void }): JSX
           style={{ color: tokens.muted, fontSize: 13 }}
         >
           Why it works this way
+        </a>
+        <a
+          href="#about"
+          onClick={(e) => {
+            e.preventDefault();
+            onNav({ name: 'about' });
+          }}
+          style={{ color: tokens.muted, fontSize: 13 }}
+        >
+          About Weft
         </a>
       </div>
     </>

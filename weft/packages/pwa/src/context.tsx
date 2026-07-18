@@ -114,6 +114,7 @@ export type Route =
   | { name: 'ask' }
   | { name: 'invite' }
   | { name: 'why' }
+  | { name: 'about' }
   | { name: 'match'; queryId: string }
   | { name: 'chat'; peerPubkey: string }
   | { name: 'redeem'; token: string };
@@ -124,6 +125,7 @@ export function parseHash(hash: string): Route {
   if (h === 'ask') return { name: 'ask' };
   if (h === 'invite') return { name: 'invite' };
   if (h === 'why') return { name: 'why' };
+  if (h === 'about') return { name: 'about' };
   if (h.startsWith('match/')) return { name: 'match', queryId: h.slice(6) };
   if (h.startsWith('chat/')) return { name: 'chat', peerPubkey: h.slice(5) };
   if (h.startsWith('i/')) return { name: 'redeem', token: h.slice(2) };
@@ -154,6 +156,7 @@ function routeToHash(r: Route): string {
     case 'ask': return '#ask';
     case 'invite': return '#invite';
     case 'why': return '#why';
+    case 'about': return '#about';
     case 'match': return `#match/${r.queryId}`;
     case 'chat': return `#chat/${r.peerPubkey}`;
     case 'redeem': return `#i/${r.token}`;
