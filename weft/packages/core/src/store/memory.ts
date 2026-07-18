@@ -16,6 +16,7 @@ import {
   type QueryState,
   type ReaperResult,
   type ReverseRoute,
+  type StoredMessage,
   type WeftStore,
 } from './types';
 
@@ -35,6 +36,8 @@ export class MemoryStore implements WeftStore {
   private readonly queryStates = new Map<string, QueryState>();
   private readonly reverseRoutes = new Map<string, ReverseRoute>();
   private readonly invites = new Map<string, OutgoingInvite>();
+  private readonly interests = new Set<string>();
+  private readonly messages = new Map<string, StoredMessage>();
   private userPubkey: string | undefined;
 
   constructor(opts: MemoryStoreOptions = {}) {
@@ -171,6 +174,32 @@ export class MemoryStore implements WeftStore {
     return next;
   }
 
+  // --- interests ---
+  async listInterests(): Promise<string[]> {
+    return [...this.interests];
+  }
+  async addInterest(text: string): Promise<void> {
+    this.interests.add(text);
+  }
+  async removeInterest(text: string): Promise<void> {
+    this.interests.delete(text);
+  }
+
+  // --- messages ---
+  async appendMessage(msg: StoredMessage): Promise<void> {
+    this.messages.set(msg.id, msg);
+  }
+  async listMessagesForPeer(peerPubkey: string): Promise<StoredMessage[]> {
+    const list = [...this.messages.values()].filter((m) => m.peerPubkey === peerPubkey);
+    list.sort((a, b) => a.at - b.at);
+    return list;
+  }
+  async listConversationPeers(): Promise<string[]> {
+    const set = new Set<string>();
+    for (const m of this.messages.values()) set.add(m.peerPubkey);
+    return [...set];
+  }
+
   // --- reaper ---
   async expireSweep(now: number): Promise<ReaperResult> {
     // Query states + reverse routes: expiresAt <= now.
@@ -199,5 +228,7 @@ export class MemoryStore implements WeftStore {
     this.queryStates.clear();
     this.reverseRoutes.clear();
     this.invites.clear();
+    this.interests.clear();
+    this.messages.clear();
   }
 }

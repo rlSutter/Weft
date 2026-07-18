@@ -158,6 +158,35 @@ describe('MemoryStore — expireSweep (M3-T2 reaper)', () => {
   });
 });
 
+describe('MemoryStore — interests (v0.1.1 persistence)', () => {
+  it('add/list/remove roundtrip', async () => {
+    await store.addInterest('koji fermentation');
+    await store.addInterest('trail running');
+    expect((await store.listInterests()).sort()).toEqual(['koji fermentation', 'trail running']);
+    await store.removeInterest('koji fermentation');
+    expect(await store.listInterests()).toEqual(['trail running']);
+  });
+
+  it('adding the same interest twice does not duplicate', async () => {
+    await store.addInterest('koji fermentation');
+    await store.addInterest('koji fermentation');
+    expect(await store.listInterests()).toEqual(['koji fermentation']);
+  });
+});
+
+describe('MemoryStore — messages (v0.1.1 persistence)', () => {
+  it('appendMessage / listMessagesForPeer / listConversationPeers', async () => {
+    await store.appendMessage({ id: 'm1', peerPubkey: 'a', from: 'me', text: 'hi', at: 100 });
+    await store.appendMessage({ id: 'm2', peerPubkey: 'a', from: 'them', text: 'hey', at: 110 });
+    await store.appendMessage({ id: 'm3', peerPubkey: 'b', from: 'me', text: 'yo', at: 120 });
+
+    const forA = await store.listMessagesForPeer('a');
+    expect(forA.map((m) => m.text)).toEqual(['hi', 'hey']); // ascending by at
+    expect((await store.listConversationPeers()).sort()).toEqual(['a', 'b']);
+    expect(await store.listMessagesForPeer('c')).toEqual([]);
+  });
+});
+
 describe('schema migrations — Fable L14', () => {
   it('planMigrations returns empty when already current', () => {
     expect(planMigrations(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)).toEqual([]);

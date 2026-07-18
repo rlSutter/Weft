@@ -220,7 +220,39 @@ export class WeftClient {
 
     this.wireEvents();
     this.subscribe();
-    void this.refreshInvites();
+    void this.hydrateFromStore();
+  }
+
+  /**
+   * On boot: rehydrate ClientState from IdbStore so declared interests,
+   * conversations, contacts, and invites survive reload. Declared interests
+   * also get re-declared to the QueryEngine (its list is in-memory).
+   */
+  private async hydrateFromStore(): Promise<void> {
+    const [interests, invites, conversationPeers] = await Promise.all([
+      this.store.listInterests(),
+      this.store.listInvites(),
+      this.store.listConversationPeers(),
+    ]);
+
+    for (const t of interests) {
+      await this.query.declareInterest(t);
+    }
+
+    const conversations: Conversation[] = [];
+    for (const peerPubkey of conversationPeers) {
+      const [msgs, contact] = await Promise.all([
+        this.store.listMessagesForPeer(peerPubkey),
+        this.store.getContact(peerPubkey),
+      ]);
+      conversations.push({
+        peerPubkey,
+        peerName: contact?.displayName ?? peerPubkey.slice(0, 8),
+        messages: msgs.map((m) => ({ from: m.from, text: m.text, at: m.at })),
+      });
+    }
+
+    this.setState((s) => ({ ...s, interests, invites, conversations }));
   }
 
   // ---------------------------------------------------------------------
@@ -240,8 +272,18 @@ export class WeftClient {
   async declareInterest(text: string): Promise<void> {
     const t = text.trim();
     if (t.length === 0) return;
+    if (this.state.interests.includes(t)) return;
+    await this.store.addInterest(t);
     await this.query.declareInterest(t);
     this.setState((s) => ({ ...s, interests: [...s.interests, t] }));
+  }
+
+  /** Remove a declared interest. Persistence is dropped; the current-session
+   *  QueryEngine still holds an in-memory copy (there's no remove API on it
+   *  in v0), so removals take full effect on next reload. */
+  async removeInterest(text: string): Promise<void> {
+    await this.store.removeInterest(text);
+    this.setState((s) => ({ ...s, interests: s.interests.filter((i) => i !== text) }));
   }
 
   async ask(text: string): Promise<string> {
@@ -328,7 +370,14 @@ export class WeftClient {
     );
     const outer = wrap(inner, peerPubkey);
     await this.relay.publish(outer, this.relays);
-    this.appendMessage(peerPubkey, { from: 'me', text, at: Math.floor(Date.now() / 1000) });
+    await this.persistMessage(peerPubkey, 'me', text);
+  }
+
+  private async persistMessage(peerPubkey: string, from: 'me' | 'them', text: string): Promise<void> {
+    const at = Math.floor(Date.now() / 1000);
+    const id = newMessageId();
+    await this.store.appendMessage({ id, peerPubkey, from, text, at });
+    this.appendMessage(peerPubkey, { from, text, at });
   }
 
   // ---------------------------------------------------------------------
@@ -364,11 +413,7 @@ export class WeftClient {
       const body = JSON.parse(opened.inner.content) as { text?: string };
       if (typeof body.text !== 'string') return;
       const peerPub = opened.inner.pubkey;
-      this.appendMessage(peerPub, {
-        from: 'them',
-        text: body.text,
-        at: Math.floor(Date.now() / 1000),
-      });
+      await this.persistMessage(peerPub, 'them', body.text);
     } catch {
       // Not a channel message — some other 4917 (channel handoff during
       // handshake stage 5). Ignore here; handshake engine handles it.
@@ -421,6 +466,15 @@ export class WeftClient {
   private onHandshakeEvent(e: HandshakeEvent): void {
     if (e.type === 'channelOpen') {
       this.health.handshakeCompleted();
+      // Save the peer as a persistent Contact so their displayName survives
+      // reload. Fire-and-forget — a failed contact save shouldn't block the
+      // reveal transition.
+      void this.store.upsertContact({
+        pubkey: e.theirIdentity.pubkey,
+        displayName: e.theirIdentity.displayName,
+        relayHints: [],
+        addedAt: Math.floor(Date.now() / 1000),
+      });
       this.setState((s) => ({
         ...s,
         activeMatches: s.activeMatches.filter((m) => m.queryId !== e.matchId),
@@ -514,3 +568,16 @@ export type { InviteTokenDescription };
 void sealTextTo;
 void openTextFrom;
 void Tags;
+
+// crypto.randomUUID is available in modern browsers (Chromium/FF) and Node
+// 19+; fall back to a hex-random string for extreme edge cases.
+function newMessageId(): string {
+  const g = globalThis as unknown as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) return g.crypto.randomUUID();
+  return (
+    Date.now().toString(16) +
+    '-' +
+    Math.random().toString(16).slice(2) +
+    Math.random().toString(16).slice(2)
+  );
+}

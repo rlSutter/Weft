@@ -12,11 +12,15 @@ import {
   type QueryState,
   type ReaperResult,
   type ReverseRoute,
+  type StoredMessage,
   type WeftStore,
 } from '@weft/core';
 
 const DB_NAME = 'weft';
-const DB_VERSION = 1;
+// v2 adds `interests` and `messages` stores. Existing users' databases
+// upgrade in place — the upgrade callback only creates stores that don't
+// already exist, so v1 data is preserved untouched.
+const DB_VERSION = 2;
 
 type Tables = {
   events: NostrEvent;
@@ -26,6 +30,8 @@ type Tables = {
   queryStates: QueryState;
   reverseRoutes: ReverseRoute;
   invites: OutgoingInvite;
+  interests: { text: string };
+  messages: StoredMessage;
   meta: { key: string; value: unknown };
 };
 
@@ -49,6 +55,13 @@ async function getDb(): Promise<IDBPDatabase> {
         db.createObjectStore('invites', { keyPath: 'iid' });
       if (!db.objectStoreNames.contains('meta'))
         db.createObjectStore('meta', { keyPath: 'key' });
+      // v2 additions.
+      if (!db.objectStoreNames.contains('interests'))
+        db.createObjectStore('interests', { keyPath: 'text' });
+      if (!db.objectStoreNames.contains('messages')) {
+        const store = db.createObjectStore('messages', { keyPath: 'id' });
+        store.createIndex('peerPubkey', 'peerPubkey', { unique: false });
+      }
     },
   });
   return db;
@@ -180,6 +193,36 @@ export class IdbStore implements WeftStore {
     return next;
   }
 
+  // --- interests ---
+  async listInterests(): Promise<string[]> {
+    const all: Tables['interests'][] = await (await getDb()).getAll('interests');
+    return all.map((r) => r.text);
+  }
+  async addInterest(text: string): Promise<void> {
+    (await getDb()).put('interests', { text });
+  }
+  async removeInterest(text: string): Promise<void> {
+    (await getDb()).delete('interests', text);
+  }
+
+  // --- messages ---
+  async appendMessage(msg: StoredMessage): Promise<void> {
+    (await getDb()).put('messages', msg);
+  }
+  async listMessagesForPeer(peerPubkey: string): Promise<StoredMessage[]> {
+    const d = await getDb();
+    const idx = d.transaction('messages').store.index('peerPubkey');
+    const list: StoredMessage[] = await idx.getAll(peerPubkey);
+    list.sort((a, b) => a.at - b.at);
+    return list;
+  }
+  async listConversationPeers(): Promise<string[]> {
+    const all: StoredMessage[] = await (await getDb()).getAll('messages');
+    const set = new Set<string>();
+    for (const m of all) set.add(m.peerPubkey);
+    return [...set];
+  }
+
   async expireSweep(now: number): Promise<ReaperResult> {
     const qs = await this.listExpiredQueryStates(now);
     for (const s of qs) await this.deleteQueryState(s.queryId);
@@ -199,7 +242,18 @@ export class IdbStore implements WeftStore {
 
   async clear(): Promise<void> {
     const d = await getDb();
-    for (const store of ['events', 'contacts', 'vouches', 'stamps', 'queryStates', 'reverseRoutes', 'invites', 'meta']) {
+    for (const store of [
+      'events',
+      'contacts',
+      'vouches',
+      'stamps',
+      'queryStates',
+      'reverseRoutes',
+      'invites',
+      'interests',
+      'messages',
+      'meta',
+    ]) {
       await d.clear(store);
     }
   }

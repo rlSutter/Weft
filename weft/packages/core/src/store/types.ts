@@ -87,6 +87,22 @@ export interface OutgoingInvite {
   readonly createdAt: number;
 }
 
+/**
+ * One channel-message record. Persisted so conversations survive reload.
+ * Deliberately minimal: peer pubkey, direction, text, timestamp — no
+ * derived state, no read receipts.
+ */
+export interface StoredMessage {
+  /** Unique per-device id (random). NOT the wire event id — a channel
+   *  message is a wrapped 4917 whose id is on the wrapper. */
+  readonly id: string;
+  readonly peerPubkey: string;
+  readonly from: 'me' | 'them';
+  readonly text: string;
+  /** Unix seconds. */
+  readonly at: number;
+}
+
 // ---------------------------------------------------------------------------
 // Query interfaces
 // ---------------------------------------------------------------------------
@@ -153,6 +169,19 @@ export interface WeftStore {
     status: OutgoingInvite['status'],
     patch?: Partial<Pick<OutgoingInvite, 'redeemerPubkey' | 'redeemerName'>>,
   ): Promise<OutgoingInvite | undefined>;
+
+  // --- declared interests (M6, v0.1.1 persistence) ---
+  /** The strings the user has told their device to be findable for. */
+  listInterests(): Promise<string[]>;
+  addInterest(text: string): Promise<void>;
+  removeInterest(text: string): Promise<void>;
+
+  // --- channel messages (M6, v0.1.1 persistence) ---
+  appendMessage(msg: StoredMessage): Promise<void>;
+  /** Newest-first. */
+  listMessagesForPeer(peerPubkey: string): Promise<StoredMessage[]>;
+  /** Unique pubkeys we have any messages with. */
+  listConversationPeers(): Promise<string[]>;
 
   // --- reaper (M3-T2) ---
   /**
