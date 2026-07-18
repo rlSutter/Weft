@@ -1022,7 +1022,7 @@ function WhyItWorks({ onBack }: { onBack: () => void }): JSX.Element {
         <li>dead queries: {state.counters.deadQueries}</li>
       </ul>
       <p style={{ fontSize: 13, color: tokens.muted }}>
-        These numbers never leave this phone. No topics, no names, no places, no graph.
+        These numbers never leave this phone. No topics, no names, no places, no map of who knows whom.
       </p>
     </Card>
   );

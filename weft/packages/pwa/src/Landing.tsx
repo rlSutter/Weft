@@ -161,10 +161,10 @@ function Hero({ onStart, onRedeem, alreadyOnboarded }: LandingProps): JSX.Elemen
           Weft is a way to find your people without a social media platform standing in the middle.
         </p>
         <p style={{ fontSize: 16, lineHeight: 1.6, color: tokens.muted, maxWidth: 620 }}>
-          You say what you're looking for. Your ask travels friend to friend through your real
-          social network, like asking around at a dinner table — without your name attached. When
-          it finds someone who fits, you're each shown what the other <em>is</em>, never who, until
-          you both say yes.
+          You say what you're looking for. Your ask travels quietly from friend to friend, through
+          the people you already know, like asking around at a dinner table — and without your
+          name attached. When it finds someone who fits, you're each shown what the other{' '}
+          <em>is</em>, never who, until you both say yes.
         </p>
         <div style={{ marginTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <BigButton onClick={onStart} primary>
@@ -286,7 +286,7 @@ function HowItWorks(): JSX.Element {
           Speaking is the intended input — voice on your device, no words sent to any server. Text
           works too, always.
         </NumberedItem>
-        <NumberedItem n={2} title="The ask travels your real graph.">
+        <NumberedItem n={2} title="The ask travels the people you actually know.">
           Friend to friend to friend, up to a few hops. Each hop drops your name before passing it
           on. Nobody who receives it can tell whether it started with the person who handed it to
           them or with someone three houses over.
@@ -311,8 +311,8 @@ function ComparisonTable(): JSX.Element {
   const rows: Array<[string, string, string, string]> = [
     ['What it\'s for', 'Broadcasting / keeping a profile', 'Topic communities', 'Finding people you don\'t know yet, through people you do'],
     ['Who decides what you see', 'An engagement algorithm', 'Mods + votes + algorithm', 'Nobody — there\'s nothing to see but your own asks and answers'],
-    ['How you find new people', 'Suggestions, ads, virality', 'Join big rooms, hope', 'Ask out loud; the answer travels your real social graph'],
-    ['Who holds your data', 'The company', 'The company', 'Your device; the network sees sealed envelopes that expire'],
+    ['How you find new people', 'Suggestions, ads, virality', 'Join big rooms, hope', 'Ask out loud; the answer travels through people you already know'],
+    ['Who holds your data', 'The company', 'The company', 'Your device; the relays only see sealed envelopes that expire'],
     ['Business model', 'Ads (you\'re the product)', 'Ads / subscriptions', 'None: communities run their own $5 mailboxes'],
     ['Trust & identity', 'Blue checks, follower counts', 'Karma scores', 'Real people vouching for real people, readable as sentences'],
     ['Its measure of success', 'Your time on feed', 'Your time in threads', 'You found your people, and closed the app'],
@@ -475,8 +475,8 @@ function Invariants(): JSX.Element {
           shelves.
         </NumberedItem>
         <NumberedItem n={3} title="Scaling is edge-bounded by construction.">
-          Per-query work is fixed by fan-out × hops, independent of network size. A bigger network
-          just means more people to reach — never more cost per ask.
+          Per-query work is fixed by fan-out × hops, independent of how many people use Weft. More
+          users just means more people to reach — never more cost per ask.
         </NumberedItem>
         <NumberedItem n={4} title="Attribute nothing by default.">
           Identity enters only where a human chooses to reveal it. Nothing your device sends
@@ -507,7 +507,7 @@ function FinalCTA({ onStart, alreadyOnboarded }: { onStart: () => void; alreadyO
         </h2>
         <p style={{ color: tokens.muted, fontSize: 15, marginBottom: 28, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
           Weft works best when brought to a community you're already part of. Try it, invite a
-          handful of friends, and see who your network already contains.
+          handful of friends, and see who <em>they</em> know.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <BigButton onClick={onStart} primary>
