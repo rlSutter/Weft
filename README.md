@@ -10,9 +10,15 @@ Social connection should be infrastructure, not a destination — a communicatio
 
 ## Status
 
-**Pre-implementation.** The design document is a working draft (currently being revised); the build list is stable; **no application code has been written yet**. This repository holds the design, the execution plan, and an empty workspace scaffold ready for coding.
+**v0.1.0-alpha** — the PWA is a real client and the protocol works end-to-end on public Nostr relays. All four release gates verified. See `CHANGELOG.md` for what's in and what's honestly deferred.
 
-There is nothing to install, nothing to run.
+Try the live site (when deployed): https://rlsutter.github.io/Weft/
+
+Local dev:
+```
+cd weft && pnpm install && pnpm --filter @weft/pwa dev
+# → http://localhost:5173/
+```
 
 ## Scope and safety
 

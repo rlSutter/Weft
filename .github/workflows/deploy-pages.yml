@@ -1,0 +1,63 @@
+# Deploy the Weft PWA (which now includes the Landing marketing page) to
+# GitHub Pages on every push to main.
+#
+# The site lives at https://rlsutter.github.io/Weft/. Invite URLs generated
+# by the PWA use `window.location.origin + window.location.pathname` so they
+# come out as https://rlsutter.github.io/Weft/#/i/<token> automatically.
+#
+# To use a custom domain later:
+#   - Add a CNAME file to weft/packages/pwa/public/ containing the domain
+#   - Change BASE_URL below to '/'
+#   - Set the domain in the repo's Pages settings
+
+name: Deploy PWA to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable corepack + pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+      - name: Install
+        working-directory: weft
+        run: pnpm install --frozen-lockfile
+      - name: Build PWA for GitHub Pages
+        working-directory: weft
+        env:
+          BASE_URL: /Weft/
+        run: pnpm --filter @weft/pwa build
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: weft/packages/pwa/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

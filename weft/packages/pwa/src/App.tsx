@@ -17,6 +17,7 @@ import { WeftProvider, useWeft, useRoute } from './context';
 import { decodeInviteToken, describeToken, generateKeypair, bytesToHex } from '@weft/core';
 import type { InviteTokenDescription } from '@weft/core';
 import { tokens } from './styles';
+import { Landing } from './Landing';
 
 export function App(): JSX.Element {
   return (
@@ -29,10 +30,25 @@ export function App(): JSX.Element {
 function Shell(): JSX.Element {
   const { client, state, identity } = useWeft();
   const [route, navigate] = useRoute();
+  const [startedOnboarding, setStartedOnboarding] = useState(false);
 
   // Redeem route works even without an identity (identity is created inside
   // the redemption flow).
   if (route.name === 'redeem') return <RedeemScreen token={route.token} />;
+
+  // No identity yet, and the user hasn't clicked "Try Weft" — show Landing.
+  // The Landing is a full-bleed marketing page (its own Frame), so return
+  // it directly.
+  if (!identity && !startedOnboarding) {
+    return (
+      <Landing
+        onStart={() => setStartedOnboarding(true)}
+        onRedeem={(token) => {
+          window.location.hash = `#/i/${token}`;
+        }}
+      />
+    );
+  }
 
   return (
     <Frame>
@@ -394,6 +410,7 @@ function AskScreen({ onBack }: { onBack: () => void }): JSX.Element {
           borderRadius: tokens.buttonRadius,
           marginBottom: 12,
           fontFamily: 'inherit',
+          boxSizing: 'border-box',
         }}
       />
       <p style={{ color: tokens.muted, fontSize: 13 }}>
@@ -600,9 +617,19 @@ function InviteScreen({ onBack }: { onBack: () => void }): JSX.Element {
   const { client, state } = useWeft();
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [openInvite, setOpenInvite] = useState<{ name: string; url: string } | null>(null);
 
   if (!state || !client) return <p>Loading…</p>;
+
+  const create = async (): Promise<void> => {
+    if (name.trim().length === 0 || creating) return;
+    setCreating(true);
+    const trimmedName = name.trim();
+    const result = await client.createInvite({ sentTo: trimmedName, tier: 3, ctx: 'personal' });
+    setOpenInvite({ name: trimmedName, url: result.url });
+    setName('');
+    setCreating(false);
+  };
 
   return (
     <>
@@ -610,29 +637,138 @@ function InviteScreen({ onBack }: { onBack: () => void }): JSX.Element {
       <Card>
         <H2>Invite &amp; vouch</H2>
         <p style={{ color: tokens.muted, fontSize: 14 }}>
-          Bringing someone in means standing behind them. Your address book never leaves this phone.
+          Bringing someone in means standing behind them. Your address book never leaves this phone —
+          you send the invite yourself, through whatever channel you already use with your friend.
         </p>
-        <TextInput placeholder="Who are you inviting? (any name)" value={name} onChange={setName} />
-        <PrimaryButton
-          disabled={name.trim().length === 0 || creating}
-          onClick={async () => {
-            setCreating(true);
-            const result = await client.createInvite({ sentTo: name.trim(), tier: 3, ctx: 'personal' });
-            setLastUrl(result.url);
-            setName('');
-            setCreating(false);
-          }}
-        >
+      </Card>
+
+      <Card>
+        <H2>Create a new invite</H2>
+        <p style={{ color: tokens.muted, fontSize: 13, marginTop: 0 }}>
+          Who are you inviting? The name is just a local label so you can recognize the invite in
+          your list — your friend won't see it.
+        </p>
+        <TextInput
+          placeholder="e.g. Bob"
+          value={name}
+          onChange={setName}
+          onSubmit={() => void create()}
+        />
+        <PrimaryButton disabled={name.trim().length === 0 || creating} onClick={() => void create()}>
           {creating ? 'Creating…' : 'Create invite'}
         </PrimaryButton>
       </Card>
 
-      {lastUrl && (
-        <TrustCard>
-          <H2>Send this to your friend</H2>
+      {openInvite && <SharePanel invite={openInvite} onClose={() => setOpenInvite(null)} />}
+
+      <div style={{ marginTop: 24 }}>
+        <Eyebrow>Invites out</Eyebrow>
+        {state.invites.length === 0 && (
+          <p style={{ color: tokens.muted, fontSize: 13 }}>None yet.</p>
+        )}
+        {state.invites.map((i) => {
+          const canReopen = i.status === 'sent' || i.status === 'awaitingConfirm';
+          const reopen = (): void => {
+            const url = `${window.location.origin}${window.location.pathname}#/i/${i.tokenStr}`;
+            setOpenInvite({ name: i.sentTo, url });
+          };
+          const body = (
+            <>
+              <p style={{ margin: 0 }}>
+                <strong>{i.sentTo}</strong>
+              </p>
+              <p style={{ color: tokens.muted, fontSize: 12 }}>
+                {i.status === 'sent' && 'Sent — waiting for them to open it · tap to show link again'}
+                {i.status === 'awaitingConfirm' && 'They opened the invite — see your Home for the confirmation card'}
+                {i.status === 'confirmed' && 'Confirmed — vouched'}
+                {i.status === 'voided' && 'Voided'}
+              </p>
+            </>
+          );
+          return canReopen ? (
+            <QuietCard key={i.iid} onClick={reopen}>{body}</QuietCard>
+          ) : (
+            <Card key={i.iid}>{body}</Card>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SharePanel — the "how to actually send it to your friend" UI.
+// ---------------------------------------------------------------------------
+
+function SharePanel({
+  invite,
+  onClose,
+}: {
+  invite: { name: string; url: string };
+  onClose: () => void;
+}): JSX.Element {
+  const [mode, setMode] = useState<'link' | 'qr'>('link');
+  const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'qr') return;
+    let cancelled = false;
+    void (async () => {
+      const QRCode = await import('qrcode');
+      const dataUrl = await QRCode.toDataURL(invite.url, {
+        width: 320,
+        margin: 2,
+        color: { dark: '#21302B', light: '#FBFBF7' },
+      });
+      if (!cancelled) setQrDataUrl(dataUrl);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, invite.url]);
+
+  const shareApiAvailable =
+    typeof navigator !== 'undefined' && typeof (navigator as Navigator).share === 'function';
+
+  const copy = (): void => {
+    void navigator.clipboard.writeText(invite.url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const nativeShare = (): void => {
+    void (navigator as Navigator).share({
+      title: `Weft invite for ${invite.name}`,
+      text: `Here's your Weft invite. Open this link on your phone to join:`,
+      url: invite.url,
+    });
+  };
+
+  return (
+    <TrustCard>
+      <H2>Send this to {invite.name}</H2>
+      <p style={{ color: tokens.muted, fontSize: 13, marginTop: 0 }}>
+        Any channel works — Signal, iMessage, email, in-person. The link IS the invite; there's
+        nothing else to send. Weft's servers never see the token because it rides after the <code>#</code>.
+      </p>
+
+      {/* Mode picker */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <ModeButton active={mode === 'link'} onClick={() => setMode('link')}>
+          Link
+        </ModeButton>
+        <ModeButton active={mode === 'qr'} onClick={() => setMode('qr')}>
+          QR
+        </ModeButton>
+      </div>
+
+      {mode === 'link' && (
+        <>
           <textarea
             readOnly
-            value={lastUrl}
+            value={invite.url}
             style={{
               width: '100%',
               padding: 12,
@@ -642,43 +778,97 @@ function InviteScreen({ onBack }: { onBack: () => void }): JSX.Element {
               marginBottom: 8,
               fontFamily: 'monospace',
               minHeight: 80,
+              boxSizing: 'border-box',
+              background: tokens.card,
             }}
             onFocus={(e) => e.target.select()}
           />
-          <QuietButton
-            onClick={() => {
-              void navigator.clipboard.writeText(lastUrl);
-            }}
-          >
-            Copy link
-          </QuietButton>
-          <p style={{ color: tokens.muted, fontSize: 12, marginTop: 8 }}>
-            The token rides after the #, which browsers never send to any server — even our website
-            can't see it pass.
-          </p>
-        </TrustCard>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <QuietButton onClick={copy}>{copied ? '✓ Copied' : 'Copy link'}</QuietButton>
+            {shareApiAvailable && <QuietButton onClick={nativeShare}>Share via…</QuietButton>}
+          </div>
+        </>
       )}
 
-      <div style={{ marginTop: 24 }}>
-        <Eyebrow>Invites out</Eyebrow>
-        {state.invites.length === 0 && (
-          <p style={{ color: tokens.muted, fontSize: 13 }}>None yet.</p>
-        )}
-        {state.invites.map((i) => (
-          <Card key={i.iid}>
-            <p style={{ margin: 0 }}>
-              <strong>{i.sentTo}</strong>
-            </p>
-            <p style={{ color: tokens.muted, fontSize: 12 }}>
-              {i.status === 'sent' && 'Sent — waiting for redemption'}
-              {i.status === 'awaitingConfirm' && 'Awaiting your confirmation'}
-              {i.status === 'confirmed' && 'Confirmed — vouched'}
-              {i.status === 'voided' && 'Voided'}
-            </p>
-          </Card>
-        ))}
+      {mode === 'qr' && (
+        <>
+          {qrDataUrl ? (
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
+              <img
+                src={qrDataUrl}
+                alt="Invite QR code"
+                style={{
+                  width: '100%',
+                  maxWidth: 280,
+                  border: `1px solid ${tokens.line}`,
+                  borderRadius: tokens.buttonRadius,
+                  background: tokens.card,
+                }}
+              />
+            </div>
+          ) : (
+            <p style={{ color: tokens.muted, fontSize: 13 }}>Generating QR…</p>
+          )}
+          <p style={{ color: tokens.muted, fontSize: 12 }}>
+            Have your friend point their phone camera at this QR. Any camera app can open the link;
+            no app install needed.
+          </p>
+        </>
+      )}
+
+      <hr style={{ border: 'none', borderTop: `1px solid ${tokens.line}`, margin: '16px 0' }} />
+      <p style={{ color: tokens.muted, fontSize: 12, marginBottom: 4 }}>
+        <strong>What happens next:</strong> when {invite.name} opens the link, a confirmation card
+        appears on <em>your</em> Home asking "Is this really your {invite.name}?" — until you tap
+        yes, no vouch is finalized. That step is the defense against someone forwarding your invite
+        to a stranger.
+      </p>
+      <div style={{ marginTop: 12 }}>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: tokens.muted,
+            fontSize: 12,
+            cursor: 'pointer',
+            padding: 0,
+            fontFamily: 'inherit',
+          }}
+        >
+          Close
+        </button>
       </div>
-    </>
+    </TrustCard>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '6px 14px',
+        background: active ? tokens.accent : 'transparent',
+        color: active ? 'white' : tokens.accent,
+        border: `1.5px solid ${tokens.accent}`,
+        borderRadius: tokens.chipRadius,
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -686,19 +876,38 @@ function InterestsCard(): JSX.Element {
   const { client, state } = useWeft();
   const [text, setText] = useState('');
   if (!client || !state) return <></>;
+
+  const submit = (): void => {
+    const t = text.trim();
+    if (!t) return;
+    if (state.interests.includes(t)) {
+      setText('');
+      return;
+    }
+    void client.declareInterest(t);
+    setText('');
+  };
+
   return (
     <div style={{ marginTop: 24 }}>
       <Eyebrow>What you're into</Eyebrow>
       <Card>
-        <p style={{ color: tokens.muted, fontSize: 13, marginTop: 0 }}>
+        <p style={{ color: tokens.muted, fontSize: 13, marginTop: 0, marginBottom: 12 }}>
           Tell your device what you'd want to be found for. These stay on this phone; they're what
           your matcher checks against incoming asks.
         </p>
+        <TextInput
+          placeholder="e.g. koji fermentation"
+          value={text}
+          onChange={setText}
+          onSubmit={submit}
+        />
+        <QuietButton onClick={submit}>Add</QuietButton>
         {state.interests.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginTop: 12 }}>
             {state.interests.map((i, idx) => (
               <span
-                key={idx}
+                key={`${idx}-${i}`}
                 style={{
                   display: 'inline-block',
                   padding: '4px 12px',
@@ -706,8 +915,9 @@ function InterestsCard(): JSX.Element {
                   color: tokens.accent,
                   borderRadius: tokens.chipRadius,
                   marginRight: 8,
-                  marginBottom: 4,
+                  marginBottom: 6,
                   fontSize: 13,
+                  background: tokens.accentSoft,
                 }}
               >
                 {i}
@@ -715,17 +925,6 @@ function InterestsCard(): JSX.Element {
             ))}
           </div>
         )}
-        <TextInput placeholder="e.g. koji fermentation" value={text} onChange={setText} />
-        <QuietButton
-          onClick={() => {
-            if (text.trim()) {
-              void client.declareInterest(text.trim());
-              setText('');
-            }
-          }}
-        >
-          Add
-        </QuietButton>
       </Card>
     </div>
   );
@@ -978,10 +1177,12 @@ function TextInput({
   value,
   onChange,
   placeholder,
+  onSubmit,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onSubmit?: () => void;
 }): JSX.Element {
   return (
     <input
@@ -989,6 +1190,12 @@ function TextInput({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (onSubmit && e.key === 'Enter') {
+          e.preventDefault();
+          onSubmit();
+        }
+      }}
       style={{
         width: '100%',
         padding: 12,
@@ -997,6 +1204,7 @@ function TextInput({
         borderRadius: tokens.buttonRadius,
         marginBottom: 8,
         fontFamily: 'inherit',
+        boxSizing: 'border-box',
       }}
     />
   );
