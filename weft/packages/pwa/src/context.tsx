@@ -28,8 +28,10 @@ interface WeftContextValue {
   completeOnboarding(displayName: string): void;
   /** Replace the current identity with a redeemed keypair (invite path). */
   adoptRedeemedIdentity(secret: Uint8Array, displayName: string): void;
-  /** Wipe all local state and start over. */
-  reset(): void;
+  /** Wipe all local state and start over. Awaits IdbStore.clear() before
+   *  destroying the client, so callers can safely follow with a
+   *  `window.location.reload()` and know nothing lingers. */
+  reset(): Promise<void>;
 }
 
 const WeftContext = createContext<WeftContextValue | null>(null);
@@ -81,10 +83,20 @@ export function WeftProvider({ children }: { children: ReactNode }): JSX.Element
     setIdentity({ pubkeyHex: bytesToHex(pubkey), displayName });
   }, [client]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
+    // Wipe IdbStore first — otherwise contacts, vouches, invites, interests,
+    // and messages from the previous identity would leak into the next one.
+    if (client) {
+      try {
+        await client.store.clear();
+      } catch {
+        // Best-effort; if the DB is in a weird state we still proceed to
+        // clear localStorage so the user isn't stuck.
+      }
+      client.destroy();
+    }
     localStorage.removeItem(KEY_SECRET_HEX);
     localStorage.removeItem(KEY_DISPLAY_NAME);
-    if (client) client.destroy();
     setClient(null);
     setIdentity(null);
     setState(null);

@@ -1005,26 +1005,109 @@ function WhyItWorks({ onBack }: { onBack: () => void }): JSX.Element {
   const { state } = useWeft();
   if (!state) return <p>Loading…</p>;
   return (
-    <Card>
+    <>
       <BackButton onClick={onBack} />
-      <H2>Why it works this way</H2>
-      <p>Weft is a channel, not a place. Ask, don't broadcast. Silence is a valid answer.</p>
+      <Card>
+        <H2>Why it works this way</H2>
+        <p>Weft is a channel, not a place. Ask, don't broadcast. Silence is a valid answer.</p>
+        <p>
+          Every ask travels friend to friend, shedding your name at the first step. Nobody meets
+          before both say yes. Trust reads as sentences, not scores. Forgetting is the default.
+        </p>
+      </Card>
+      <Card>
+        <H2>What leaves this phone</H2>
+        <ul style={{ fontSize: 14, color: tokens.muted, paddingLeft: 20 }}>
+          <li>asks sent: {state.counters.asksSent}</li>
+          <li>asks matched: {state.counters.asksMatched}</li>
+          <li>handshakes completed: {state.counters.handshakesCompleted}</li>
+          <li>forwards relayed: {state.counters.forwardsRelayed}</li>
+          <li>dead queries: {state.counters.deadQueries}</li>
+        </ul>
+        <p style={{ fontSize: 13, color: tokens.muted }}>
+          These numbers never leave this phone. No topics, no names, no places, no map of who knows
+          whom.
+        </p>
+      </Card>
+      <StartOverSection />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// StartOverSection — destructive; two-step confirm before wiping.
+// ---------------------------------------------------------------------------
+
+function StartOverSection(): JSX.Element {
+  const { reset, identity } = useWeft();
+  const [confirming, setConfirming] = useState(false);
+  const [wiping, setWiping] = useState(false);
+
+  if (wiping) {
+    return (
+      <Card>
+        <p style={{ margin: 0, color: tokens.muted }}>Wiping…</p>
+      </Card>
+    );
+  }
+
+  if (!confirming) {
+    return (
+      <Card>
+        <H2>Start over</H2>
+        <p style={{ color: tokens.muted, fontSize: 14 }}>
+          Wipes this device's identity, contacts, invites, messages, and interests. Your friends
+          keep their copies of the vouches you sent them, but they'll see you as a stranger until
+          you invite each other fresh.
+        </p>
+        <QuietButton onClick={() => setConfirming(true)}>Start over…</QuietButton>
+      </Card>
+    );
+  }
+
+  return (
+    <DangerCard>
+      <H2>Wipe everything on this device?</H2>
       <p>
-        Every ask travels friend to friend, shedding your name at the first step. Nobody meets before
-        both say yes. Trust reads as sentences, not scores. Forgetting is the default.
+        This deletes:
       </p>
-      <H2>What leaves this phone</H2>
-      <ul style={{ fontSize: 14, color: tokens.muted, paddingLeft: 20 }}>
-        <li>asks sent: {state.counters.asksSent}</li>
-        <li>asks matched: {state.counters.asksMatched}</li>
-        <li>handshakes completed: {state.counters.handshakesCompleted}</li>
-        <li>forwards relayed: {state.counters.forwardsRelayed}</li>
-        <li>dead queries: {state.counters.deadQueries}</li>
+      <ul style={{ fontSize: 14, paddingLeft: 20 }}>
+        <li>Your identity ({identity?.displayName ?? 'unknown'})</li>
+        <li>Every contact and vouch you've received</li>
+        <li>Every invite you've sent</li>
+        <li>Every message in every conversation</li>
+        <li>Every declared interest</li>
       </ul>
-      <p style={{ fontSize: 13, color: tokens.muted }}>
-        These numbers never leave this phone. No topics, no names, no places, no map of who knows whom.
+      <p style={{ color: tokens.muted, fontSize: 13 }}>
+        This is not recoverable — Weft has no server-side backup. Only proceed if you meant to.
       </p>
-    </Card>
+      <button
+        onClick={async () => {
+          setWiping(true);
+          await reset();
+          // Reload for a clean slate — the URL becomes the About page after
+          // the identity is gone (Shell default without identity is Landing).
+          window.location.hash = '#about';
+          window.location.reload();
+        }}
+        style={{
+          width: '100%',
+          padding: 14,
+          background: tokens.danger,
+          color: 'white',
+          border: 'none',
+          borderRadius: tokens.buttonRadius,
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: 'pointer',
+          marginTop: 12,
+          fontFamily: 'inherit',
+        }}
+      >
+        Yes, wipe everything
+      </button>
+      <QuietButton onClick={() => setConfirming(false)}>Cancel</QuietButton>
+    </DangerCard>
   );
 }
 
