@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "Weft v0 — post-platform communications channel (scaffold)",
   "license": "SEE LICENSE IN ../LICENSE",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=22"
   },

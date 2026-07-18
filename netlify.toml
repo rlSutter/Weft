@@ -1,0 +1,107 @@
+# Netlify build & headers config for weft.info.
+#
+# Weft is a fully static PWA — the "server" is a folder of files. Netlify
+# clones the repo, builds, and hosts the resulting dist/ directory behind
+# their CDN + HTTPS.
+#
+# Pipeline:
+#   1. Netlify clones the repo
+#   2. cd into `base` below (weft/)
+#   3. Auto-detects pnpm from pnpm-lock.yaml + packageManager field, uses
+#      corepack to pin to that version
+#   4. Runs its own install step (pnpm install --frozen-lockfile)
+#   5. Runs the `command` below
+#   6. Publishes the `publish` directory to the CDN
+#
+# BASE_URL for the Vite build is intentionally NOT set here — the default
+# in weft/packages/pwa/vite.config.ts is '/', which is exactly what we want
+# for a root-level custom domain.
+
+[build]
+  base    = "weft"
+  command = "pnpm --filter @weft/pwa build"
+  publish = "packages/pwa/dist"
+
+[build.environment]
+  # Node 22 LTS. Matches weft/package.json `engines.node` and the porch node
+  # target so the build environment matches development.
+  NODE_VERSION = "22"
+
+# ---------------------------------------------------------------------------
+# Cache headers
+# ---------------------------------------------------------------------------
+
+# Vite hashes asset filenames (index-CaoJ0ZDG.js, browser-BXdiCFWD.js…), so
+# they are content-addressable and safe to cache forever. New deploys get new
+# hashes automatically.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The entry HTML references the current asset hashes. Browsers need a fresh
+# copy on each visit so they pick up new deploys, and so the service-worker
+# registration script gets updated when we ship SW changes.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Service worker itself: never cache at the CDN. The browser has its own
+# 24-hour SW update check but only bypasses the HTTP cache for the SW file
+# if the response is fresh. no-cache here makes updates propagate promptly.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/registerSW.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# PWA manifest: brief cache is fine; it changes rarely.
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+# ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
+
+# Standard protective headers. None of these change Weft's behavior — the
+# app makes zero HTTP requests to weft.info after the initial page load
+# (all traffic goes to Nostr relays over WSS).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "no-referrer"
+    Permissions-Policy     = "camera=(self), microphone=(self), geolocation=()"
+    # Frame-ancestors is the modern replacement for X-Frame-Options; we
+    # deny embedding to prevent clickjacking on the invite-redeem flow.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+
+# ---------------------------------------------------------------------------
+# Routing note
+# ---------------------------------------------------------------------------
+#
+# Weft uses hash-based routing (#ask, #invite, #/i/<token>, #about, etc.).
+# The fragment stays client-side, so no SPA fallback redirects are needed:
+# every URL either resolves to a real asset or to /, which returns
+# index.html.
+#
+# The invite token in #/i/<token> is never transmitted to Netlify — browsers
+# do not send fragments in HTTP requests. This is the DD §30.1 property that
+# lets the "postcard" invite carrier stay confidential from the host.

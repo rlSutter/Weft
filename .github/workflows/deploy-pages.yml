@@ -1,3 +1,15 @@
+# LEGACY: This workflow deploys the PWA to GitHub Pages at
+# https://rlsutter.github.io/Weft/. Production deploys now go through
+# Netlify (see netlify.toml + the README section on deployment).
+#
+# This file is kept as a fallback path. If GitHub Pages is disabled under
+# Settings → Pages (which is the default when Netlify is used), this
+# workflow will run on push but the upload-pages-artifact / deploy-pages
+# steps fail without side effects. To silence: turn off the workflow at
+# Actions → deploy-pages.yml → Disable workflow.
+#
+# ---
+#
 # Deploy the Weft PWA (which now includes the Landing marketing page) to
 # GitHub Pages on every push to main.
 #
