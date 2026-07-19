@@ -759,7 +759,7 @@ function SharePanel({
   onClose: () => void;
 }): JSX.Element {
   const [mode, setMode] = useState<'link' | 'qr'>('link');
-  const [copied, setCopied] = useState(false);
+  const [copiedWhat, setCopiedWhat] = useState<'link' | 'message' | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -782,18 +782,40 @@ function SharePanel({
   const shareApiAvailable =
     typeof navigator !== 'undefined' && typeof (navigator as Navigator).share === 'function';
 
-  const copy = (): void => {
+  // The full explanatory message — used by "Copy message" and the Web
+  // Share API. Points at weft.info so the recipient can learn what this
+  // thing is *before* they decide to redeem.
+  const shareMessage = [
+    `You've been invited to Weft — a way to find your people without a platform in the middle. Free, open-source, runs entirely on your own device. No ads, no algorithms, no company.`,
+    ``,
+    `Learn more first: https://weft.info/`,
+    ``,
+    `Open your invite: ${invite.url}`,
+    ``,
+    `Note: when you open the link, the person who invited you will see a "someone joined" card asking if it's really you. Only after they tap "yes" does the vouch finalize — so accidentally-forwarded invites can't be redeemed by strangers.`,
+  ].join('\n');
+
+  const copyLink = (): void => {
     void navigator.clipboard.writeText(invite.url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedWhat('link');
+      setTimeout(() => setCopiedWhat(null), 2000);
+    });
+  };
+
+  const copyMessage = (): void => {
+    void navigator.clipboard.writeText(shareMessage).then(() => {
+      setCopiedWhat('message');
+      setTimeout(() => setCopiedWhat(null), 2000);
     });
   };
 
   const nativeShare = (): void => {
+    // Only supply text (which embeds the URL). Some target apps double up
+    // when both `text` and `url` are set — one message with everything is
+    // more predictable across email/SMS/WhatsApp/Signal.
     void (navigator as Navigator).share({
-      title: `Weft invite for ${invite.name}`,
-      text: `Here's your Weft invite. Open this link on your phone to join:`,
-      url: invite.url,
+      title: 'You have a Weft invite',
+      text: shareMessage,
     });
   };
 
@@ -801,8 +823,11 @@ function SharePanel({
     <TrustCard>
       <H2>Send this to {invite.name}</H2>
       <p style={{ color: tokens.muted, fontSize: 13, marginTop: 0 }}>
-        Any channel works — Signal, iMessage, email, in-person. The link IS the invite; there's
-        nothing else to send. Weft's servers never see the token because it rides after the <code>#</code>.
+        Any channel works — Signal, iMessage, email, in-person. Use{' '}
+        <strong>Copy message</strong> for a full explanation your friend can read before they open
+        anything (recommended if they've never heard of Weft), or <strong>Copy link</strong> if
+        you're already talking with them and just need the URL. Weft's servers never see the token
+        either way — it rides after the <code>#</code>.
       </p>
 
       {/* Mode picker */}
@@ -835,7 +860,12 @@ function SharePanel({
             onFocus={(e) => e.target.select()}
           />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <QuietButton onClick={copy}>{copied ? '✓ Copied' : 'Copy link'}</QuietButton>
+            <QuietButton onClick={copyMessage}>
+              {copiedWhat === 'message' ? '✓ Copied' : 'Copy message'}
+            </QuietButton>
+            <QuietButton onClick={copyLink}>
+              {copiedWhat === 'link' ? '✓ Copied' : 'Copy link'}
+            </QuietButton>
             {shareApiAvailable && <QuietButton onClick={nativeShare}>Share via…</QuietButton>}
           </div>
         </>
