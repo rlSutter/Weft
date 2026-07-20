@@ -230,7 +230,8 @@ Each is a real weakness with a design response scheduled or a tradeoff stated. F
 | Interest-probing oracle (F6) | **Mitigated in v0 — must ship** | Reply rate limits, probe detection, jittered thresholds, reply-only-after-tap. Sim test required. |
 | Invite-tree capture / onboarding eclipse (F7) | Partially mitigated in v0 | Single-path health note; unremovable relay/rendezvous fallbacks. |
 | Porch nodes observe intra-cell flow metadata (F8) | Documented, partially mitigated | Plural porch nodes per cell (mandatory in the steward kit); randomized first-hop selection; porch route tables in RAM only. |
-| Group-as-respondent is unspecified (F9) | Open (spec) | The most common match type in the UX has no wire meaning yet; must be specified before groups ship. |
+| Group-as-respondent (F9) | **Specified in DD §36.2** (kinds 4911 + `grp`-tagged 4912); v0 remains person-to-person | Registry-complete now so nothing renumbers; behavior lands with the v2 group layer (build-list M10-T5). |
+| Invite-tree capture at the group layer (F7, group form) | **Fixed in spec — DD §36.2 amendment (2026-07-19)** | Greeter blind issuance: 4933 wrapped to a joiner-supplied ephemeral pubkey, 4922 signed by a cell-scoped key derived from `k_cred`, no joiner identity pubkey on the join path. Network-level invite-tree capture (F7) remains partially mitigated per row above. Residual: greeter still sees join *timing* and the *carrying relay* (join-path instance of F8). |
 | Multi-device key handling (F10) | **Fixed in spec** | Porch nodes get their own device key, vouched by the primary. Root keys are never copied. |
 | Terms are not yet coded predicates (F11) | Open (spec) | Free-text terms would be a *consent* bug across languages; terms must be an enumerated registry. |
 | Store schema migrations (F12) | Open | `schema_version` + forward-only migrations + a CI migration test (M3). |
