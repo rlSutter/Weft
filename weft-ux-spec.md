@@ -1,5 +1,7 @@
 # Weft — UX Design Specification
 
+> **Canonical status.** *Governs:* per-screen copy, states, tokens, and acceptance checklists — Part IV's **BUILD** sections are binding for the PWA the way DD §30 and §33 are binding for wire formats. Normative for M6 (v0 UI) and M11-T3 (v2 persona UX). *Defers to:* `weft-design.md` on wire formats and kind numbers; `weft-mockup.html`/`.jsx` on visual language (palette, type, card patterns). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Copy changes go through the source-only copy lint (TESTING.md Layer 3).
+
 **Audience:** this document serves two readers at once.
 - **The human designer** needs the *why* — principles, rationale, emotional intent, edge-case reasoning.
 - **Claude Code** needs the *what* — exact tokens, component contracts, every state, and testable acceptance criteria.

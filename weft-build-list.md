@@ -1,5 +1,7 @@
 # Weft v0 — Build List for Claude Code
 
+> **Canonical status.** *Governs:* milestone scope and ordering (M0–M8 for v0; §16's M9–M13 for v2), per-task acceptance tests, the pinned dependency stack (§2), deferred-features list (§13), definition of done (§14). *Defers to:* `weft-design.md` on wire formats and kind numbers; `weft-ux-spec.md` on the UX contract for M6 and M11-T3. *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). M0–M8 shipped; the §16 v2 appendix becomes active for M9. When this doc and the DD conflict on scope, this doc wins; on wire bytes, the DD wins.
+
 This is an execution plan, not a design document. The design lives in `weft-design.md` (referenced below as **DD §n**). When this file and your own judgment disagree, follow this file. When this file is silent, follow the cited DD section. When both are silent, stop and ask the human.
 
 ---

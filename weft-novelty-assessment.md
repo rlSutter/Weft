@@ -1,5 +1,7 @@
 # Weft — Novelty & Prior-Art Assessment
 
+> **Canonical status.** *Governs:* the prior-art landscape (closest ancestors, patents, adjacent systems) and Weft's defensible novel-in-combination claims. Not a patent clearance opinion. *Defers to:* nothing (Fable-authored evaluation; the human designer and Fable jointly own updates). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Rerun for any public-facing marketing claim about novelty; update when a new prior-art system is discovered.
+
 *Prepared by Fable. This is a grounded assessment: claims below were checked against current literature and live systems via search, not from memory alone. It is not a patent clearance opinion — see §6.*
 
 ## 1. Method and headline

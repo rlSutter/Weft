@@ -1,5 +1,7 @@
 # Weft — Application Structure
 
+> **Canonical status.** *Governs:* package boundaries (`core/` may-not-import list), folder layout of the `weft/` scaffold, the `core/`-no-DOM-no-Node rule (DD §32.4), and dependency policy for the pinned stack. *Defers to:* `weft-build-list.md` (per-milestone task contents), `weft-design.md` (protocol design). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). When a package boundary is challenged, this doc gets updated first; the change flows to `CHANGELOG.md`.
+
 This document describes the layout of the `weft/` application scaffold. It is a map, not a build guide. Implementation follows `weft-build-list.md` milestone by milestone; design intent lives in `weft-design.md` (referenced below as **DD §n**); UI specifications live in `weft-ux-spec.md` (normative for M6 — the **BUILD** sections there are byte-for-byte binding, the way DD §30 and §33 are for wire formats).
 
 ---
@@ -8,19 +10,28 @@ This document describes the layout of the `weft/` application scaffold. It is a 
 
 ```
 Weft/                       (this folder)
-  weft-design.md            design document (Fable is revising)
-  weft-build-list.md        execution plan for v0
+  weft-design.md            design document (v2 §36 groups/persona layers landed; §36.1/§36.2 amendments landed 2026-07-19)
+  weft-build-list.md        execution plan for v0 (M0–M8) + v2 appendix (M9–M13)
   weft-ux-spec.md           UX specification (normative for M6)
-  weft-manifesto.md
-  weft-overview.md
+  weft-manifesto.md         one-page thesis
+  weft-overview.md          plain-language introduction
   weft-mockup.html          UI visual reference
   weft-mockup.jsx           UI visual reference (React)
+  weft-novelty-assessment.md prior-art assessment (Fable)
+  GROUPS.md                 steward-facing groups synthesis (design + operations)
+  README.md                 repo landing page
+  CHANGELOG.md              phase-by-phase history
+  TESTING.md                test-layer taxonomy + release gates
+  OBSERVABILITY.md          what may/must not be logged or emitted
+  SECURITY.md               threat model + invariant enforcement in code
+  SYNTHESIS-NOTES.md        derived-doc paraphrase discipline
   LICENSE                   dual-track licensing explainer
   LICENSE-APACHE-2.0        full text (core, sim, docs)
   LICENSE-AGPL-3.0          full text (pwa, porch)
+  netlify.toml              production deploy config for weft.info
   STRUCTURE.md              this file
 
-  weft/                     application scaffold
+  weft/                     application scaffold (M0–M8 shipped as v0.1.0-alpha 2026-07-17)
     package.json              pnpm workspace root
     pnpm-workspace.yaml       declares packages/* as workspace members
     tsconfig.base.json        shared TypeScript strict-mode config
@@ -28,12 +39,12 @@ Weft/                       (this folder)
     .gitignore
 
     packages/
-      core/                   pure-TS protocol engine
+      core/                   pure-TS protocol engine (v0 modules populated; v2 cred/group/persona folders reserved)
       sim/                    in-memory network harness for tests
-      pwa/                    Vite + React browser client
+      pwa/                    Vite + React browser client (feature-complete alpha; Landing + PWA in one bundle)
       porch/                  headless Node runner
 
-    docs/                     project documentation (design doc copied here in M0)
+    docs/                     project documentation (manual-tests.md; expands as phases add process docs)
 ```
 
 The monorepo uses **pnpm workspaces** so `packages/*` can depend on each other via `workspace:*` without publishing. TypeScript is set to strict mode globally through `tsconfig.base.json`; every package extends it.
@@ -79,7 +90,7 @@ core/src/
   index.ts         package barrel
 ```
 
-Each folder currently holds only a `.gitkeep`; implementation starts when the design revisions settle.
+Milestones M0–M8 shipped in v0.1.0-alpha; the v0 module folders (`keys/`, `codec/`, `kinds/`, `invite/`, `wrap/`, `store/`, `relay/`, `routing/`, `handshake/`, `embed/`, `health.ts`) are populated and passing 145 tests. The v2 folders (`cred/`, `group/`, `persona/`) are reserved and hold `.gitkeep` — they wait on M9 per build-list §16.
 
 ---
 
@@ -112,7 +123,7 @@ Shares the same `@weft/core` engine as the PWA; the only difference is the platf
 
 ## `weft/docs/`
 
-Empty for now. Per build-list M0 the design document will be copied here once Claude Fable's revisions land, so the application repo is self-contained.
+Holds `manual-tests.md` (the Layer-4/5 test protocol from TESTING.md, written in M6-T2). Additional in-repo process docs land here as phases add them; the primary specs (`weft-design.md`, `weft-build-list.md`, `weft-ux-spec.md`) live at repo root and are canonical from there rather than being copied.
 
 ---
 

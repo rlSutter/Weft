@@ -1,5 +1,7 @@
 # Changelog
 
+> **Canonical status.** *Governs:* history of what shipped when, phase-by-phase, with reviewer sign-off recorded per entry. *Defers to:* nothing — this is the log; other docs describe intended state, this doc records realized state. *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Every substantive change to any other root doc must produce an entry here.
+
 All notable changes to Weft are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning will follow [Semantic Versioning](https://semver.org/) once code ships.
 
 **Phase model.** Weft ships in phases (roughly one per build-list milestone or coherent slice of one). Each phase is a released tag (`v0.M0`, `v0.M1`, …) and gets its own section here. `Unreleased` accumulates work in progress. Every phase entry names the collaborator who reviewed it — Fable reviews design and code for this repo alongside the human designer, and reviews are recorded here for traceability.
@@ -13,6 +15,25 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 ---
 
 ## [Unreleased]
+
+### Fixed (spec) — 2026-07-19 — reviewed by: Fable
+
+- **DD §36.1 amendment: scope_nym is now a credential-bound nullifier.** Rewritten as `PRF(k_cred, scope_id)` where `k_cred` is a per-credential secret committed in the credential and proven in ZK — replacing the earlier `PRF(root_secret, scope_id)` which silently made unlinkability-from-issuance and bounded-compromise conditional on root-secret secrecy. Adds `k_cred_commitment` to the credential attribute list and a `k_cred` lifecycle paragraph (backup-blob storage for current memberships; discard-on-leave as client discipline). Also carries a "Why not `PRF(root_secret, scope_id)`" callout so the failure mode isn't rediscovered later. Landed after the read-back cycle recorded in `SYNTHESIS-NOTES.md`.
+- **DD §36.2 amendment: greeter blind issuance.** Adds an explicit "Greeter blind issuance" paragraph specifying that 4933 is delivered to a fresh joiner-supplied ephemeral pubkey `p_join_eph` and that the 4922 consent receipt is signed by a cell-scoped signing key `k_sign = PRF(k_cred, scope_id ‖ "sign")` — **no joiner identity pubkey on the join path**. Closes the group-layer form of §35 F7. Registry rows for 4932 and 4933 updated to match. Stated residual: greeter still observes join *timing* and the *carrying relay* (join-path instance of §35 F8).
+- **DD §36.2 wording fix: "sender-keys" → "shared group key with per-member key-wrapping".** Follows the D3 correction Fable already made in `GROUPS.md`. Same construction — one shared symmetric group key that every member decrypts with, plus per-member wrapping keys used only to deliver the shared key — the earlier "sender-keys" phrasing invited confusion with Signal/MLS's distinct sender-keys scheme.
+- **`GROUPS.md`** — corrected on scope_nym derivation (credential-bound ZK nullifier, not raw PRF), the small-group key scheme (per above), and 4911/roster details. Added a "Sharp edges the design answers" section stating the greeter-bottleneck, per-cell Sybil surface, no-appeal (exit-and-fork is appeal), cold-join = equity-ladder problem, and MLS threshold one-wayness properties so implementers don't rediscover them as open questions.
+- **`SECURITY.md` gap table** updated: F9 (group-as-respondent) moves from *Open (spec)* to *Specified in DD §36.2*; a new row records F7-group-layer as *Fixed in spec* by the DD §36.2 amendment.
+
+### Added — 2026-07-19
+
+- **`SYNTHESIS-NOTES.md`** — process note capturing the meta-lesson from the GROUPS.md review cycle: compressed spec formulas often hide security-critical detail; the safety-carrying object is often the surrounding words, not the formula. Seven rules plus a pre-publish checklist, applicable to any future paraphrase of `weft-design.md` (READMEs, landing pages, steward guides, marketing copy).
+- **Root docs canonicalized.** Every root document now carries a *Canonical status* blockquote naming what it governs, what it defers to, and when it was last reviewed, so future build sessions can point at a doc and know its authority is current. `STRUCTURE.md` refreshed to reflect that M0–M8 shipped and `weft/docs/` holds `manual-tests.md`; stale "Fable is revising" notes removed.
+
+### Removed — 2026-07-19
+
+- Review-cycle artifacts, purpose served: `weft-fixes-for-claude-code.md` (Fable's build-fix instructions, applied), `weft-groups-critique.md` (Fable's critique of GROUPS.md, corrections landed in the doc itself), `weft-dd-amendments-proposed.md` (the read-back to Fable, amendments now normative in `weft-design.md`), `weft-amendments-fable-signoff.md` (Fable's sign-off, content is in DD).
+
+---
 
 *(next phase entries appear here)*
 

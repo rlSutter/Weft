@@ -1,5 +1,7 @@
 # Weft — an introduction in plain language
 
+> **Canonical status.** *Governs:* the plain-language introduction for prospective users — the comparison table, the "what it does / what it doesn't" framing, the honest fine print. Describes Weft's **design target** (v1/v2 whole vision), not the current alpha's shipping scope. *Defers to:* `weft-manifesto.md` (why), `weft-design.md` (technical truth), `README.md` (current release scope). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Any user-visible claim here must pass §35 F16 discipline (public claims never outrun the code).
+
 ## What is Weft?
 
 Weft is a way to find your people without a social media platform standing in the middle.

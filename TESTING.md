@@ -1,5 +1,7 @@
 # Testing Weft
 
+> **Canonical status.** *Governs:* test-layer taxonomy (1 through 5), the four v0 release gates and v2 gates 5/6, coverage floors on wire-critical modules, review authority for weakening tests. *Defers to:* `weft-design.md` (what invariants exist to test), `weft-build-list.md` (per-task acceptance criteria), `SECURITY.md` (which threats a gate protects against). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). No one may weaken or remove a release gate; changes here require Fable review.
+
 How to prove the code does what the design and UX spec say it does. Every task in `weft-build-list.md` has an acceptance test; this document explains the layers those tests live in, the tools that run them, the four **release-gate** tests that encode the design's soul, and the manual protocols that require a human. It is prescriptive: the shape of testing is fixed early because retrofitting test discipline into a running protocol is how subtle privacy bugs get shipped.
 
 Testing is co-owned with **Fable**, who reviews test coverage and can require additional tests before a phase is released.

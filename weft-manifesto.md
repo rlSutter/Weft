@@ -1,5 +1,7 @@
 # The Weft Manifesto
 
+> **Canonical status.** *Governs:* the thesis — the vision language every other doc must stay consistent with. *Defers to:* nothing (top of the doc tree; the constitution the other docs test themselves against). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). A manifesto change is a project pivot; it is not made lightly and cascades to every other doc via `CHANGELOG.md`.
+
 Somewhere along the way, connecting people became a business of standing between them.
 
 The feed decides what you see. The algorithm decides who you meet. The platform learns everything about you, because knowing you is the product, and sells your attention by the millisecond to whoever bids. You cannot leave without losing everyone. That is not a community. That is a hostage arrangement with good lighting.

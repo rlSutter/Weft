@@ -1,5 +1,7 @@
 # Weft
 
+> **Canonical status.** *Governs:* repo landing page — reading order, current release status, quick-start, Netlify deploy pattern for `weft.info`. *Defers to:* every doc it links to (each of those is canonical within its own scope). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). When drift is detected during the build, this doc updates first; the change flows to `CHANGELOG.md`.
+
 *A post-platform communications channel.*
 
 > Weft is how you find your people without a platform in the middle. You say what you're looking for — out loud — and your ask travels friend to friend through your real social network, like asking around at a dinner table, without your name attached. When it finds someone who fits, you're both shown what the other is, never who, until you both say yes — and every match comes vouched by real people you can name.
@@ -10,7 +12,7 @@ Social connection should be infrastructure, not a destination — a communicatio
 
 ## Status
 
-**v0.1.0-alpha** — the PWA is a real client and the protocol works end-to-end on public Nostr relays. All four release gates verified. See `CHANGELOG.md` for what's in and what's honestly deferred.
+**v0.1.0-alpha** (2026-07-17) — the PWA is a real client and the protocol works end-to-end on public Nostr relays. All four release gates verified in sim; Gate 3 (no plaintext vouches) and Gate 2 initiator-side (silent decline) additionally verified on public Nostr relays. See `CHANGELOG.md` for what's in, what's honestly deferred, and the DD §36.1/§36.2 amendments landed 2026-07-19.
 
 Try the live site (once deployed): https://weft.info/
 

@@ -1,6 +1,8 @@
 # Weft: A Post-Platform Communications Channel
 ## Architecture & Design Document — v0.2 (Working Draft)
 
+> **Canonical status.** *Governs:* the entire protocol — wire formats, kind numbers, crypto constructions, security invariants, gates, and every technical design decision. When any other doc and this doc disagree on protocol, this doc wins. *Defers to:* `weft-manifesto.md` on motivation only (why the design exists at all). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build); §36.1/§36.2 amendments landed same day per Fable sign-off. Changes require Fable review and a `CHANGELOG.md` entry under **Fixed (spec)** or **Wire**.
+
 ---
 
 ## 0. Executive Summary

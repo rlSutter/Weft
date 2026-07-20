@@ -1,5 +1,7 @@
 # How I'd do the next synthesis differently
 
+> **Canonical status.** *Governs:* the discipline for paraphrasing any spec into a derived doc — READMEs, landing pages, steward guides, marketing copy, RFC excerpts. *Defers to:* nothing (meta-process note). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Consulted before writing any doc that restates a construction from `weft-design.md`; changes require a real failure or success case to justify.
+
 *A short note-to-self prompted by Fable's review of `GROUPS.md` — one real technical error (E1), three subtle drifts, and several substantive gaps. Aimed at any future task where I paraphrase `weft-design.md` (or any other spec) into a derived doc: README copy, landing pages, a steward guide like GROUPS.md, marketing text, RFC excerpts.*
 
 The critique was warm on the overall synthesis and honest on the alpha's scope. The one real technical error (E1: `scope_nym = PRF(root_secret, cell_id)`) was not a careless typo — I copied the spec's own compressed one-liner faithfully. That's what made it a useful lesson: **faithful paraphrase of a compressed crypto formula can inherit and propagate a leak, because the safety-carrying detail lives in the surrounding words, not in the formula.** Below is what I'd change about my own process next time.

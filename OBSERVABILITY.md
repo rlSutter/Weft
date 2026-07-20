@@ -1,5 +1,7 @@
 # Observability
 
+> **Canonical status.** *Governs:* what may/must not be logged or emitted, structured-logging rules, dev-time tooling that must not ship, the process for adding a new metric or log field. *Defers to:* `weft-design.md` §10 (beacons, alarm conditions), `SECURITY.md` (what leaking a signal *means* as a threat). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Additions require Fable sign-off recorded in `CHANGELOG.md`; silent additions of telemetry are treated as security incidents.
+
 **The one rule this document exists to enforce: measure the system, never the people** (DD §10). Observability that violates that rule is worse than none — it becomes the surveillance chokepoint the whole design refuses. Every log line, counter, dashboard, and debug print in this repo must pass a red-team test before it lands: *"could this signal, alone or joined with others, deanonymize a person, reveal an interest, or reconstruct an edge of the social graph?"* If plausibly yes, it doesn't ship.
 
 This document covers what developers can see **during implementation**, what the shipping software may emit, what it must never emit, and how new signals get added. Observability review is co-owned with **Fable** — any new counter, log field, or dashboard added after M0 requires Fable's sign-off recorded in the CHANGELOG entry for its phase.

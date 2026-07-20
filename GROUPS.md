@@ -1,5 +1,7 @@
 # Weft — Groups
 
+> **Canonical status.** *Governs:* the steward-facing synthesis of Weft's group/cell design and operations — what a cell is, how it sets up, and the pre-flight/launch/weekly cadence. Sits between the DD (specification) and the eventual `docs/groups-operations.md` (playbook). *Defers to:* `weft-design.md` §36 on protocol wire formats, `SECURITY.md` on threat model, `TESTING.md` on gates, `weft-build-list.md` §16 (M9–M13) on build order. *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build); revised after Fable's critique cycle to correct scope_nym derivation and the small-group key scheme. Where this doc and the DD disagree, the DD wins.
+
 This document synthesizes how communities ("cells") set themselves up in Weft. It draws from:
 
 - **DD §7** — Community self-governance without a platform
