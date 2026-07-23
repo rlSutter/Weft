@@ -122,8 +122,11 @@ describe('event codec — v0 emission guards', () => {
     expect(() => buildEvent({ kind: 4911 })).toThrow(/v2Only/);
   });
 
-  it('refuses to build v2 credentials (4930)', () => {
-    expect(() => buildEvent({ kind: 4930 })).toThrow(/v2Only/);
+  it('4930 credential requests are emittable (v2Only lifted at M9-T4)', () => {
+    // 4930/4931 were v2Only during v0. M9-T4 (credential engine going live)
+    // promoted them. buildEvent must accept 4930 now; other v2Only kinds
+    // (4911 above, 4920/4921/etc.) still throw.
+    expect(() => buildEvent({ kind: 4930 })).not.toThrow();
   });
 });
 

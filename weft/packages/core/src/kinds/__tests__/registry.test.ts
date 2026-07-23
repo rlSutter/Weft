@@ -87,10 +87,12 @@ describe('kind registry — privacy and scope flags', () => {
   it('v2Only kinds cover the deferred-behavior set from build-list §13', () => {
     const v2Numbers = KINDS.filter((k) => k.v2Only).map((k) => k.number);
     // Group behavior (4911, 4920, 4921, 4922, 4904), tombstone (4923), escrow (4924),
-    // beacon (4905), relay ops (4906), model registry (4907), and the v2 credential/
-    // group kinds (4930–4933).
+    // beacon (4905), relay ops (4906), model registry (4907), plus the v2 group
+    // kinds still awaiting M10 (4932, 4933). 4930/4931 (credential request/issuance)
+    // were promoted out of v2Only at M9-T4 (2026-07-22) when the credential engine
+    // began emitting them live.
     expect(new Set(v2Numbers)).toEqual(
-      new Set([4904, 4905, 4906, 4907, 4911, 4920, 4921, 4922, 4923, 4924, 4930, 4931, 4932, 4933]),
+      new Set([4904, 4905, 4906, 4907, 4911, 4920, 4921, 4922, 4923, 4924, 4932, 4933]),
     );
   });
 });

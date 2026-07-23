@@ -252,17 +252,17 @@ const INNER_KINDS: readonly KindDef[] = [
     implements: 'DD §33.3, §35 F11',
   }),
   derive({
+    // v2Only lifted M9-T4 (2026-07-22) — credential engine now emits these live.
     number: 4930,
     name: 'CredentialRequest',
     retentionClass: 'E',
-    v2Only: true,
     implements: 'DD §36.1, §36.4',
   }),
   derive({
+    // v2Only lifted M9-T4 (2026-07-22) — credential engine now emits these live.
     number: 4931,
     name: 'CredentialIssuance',
     retentionClass: 'D',
-    v2Only: true,
     implements: 'DD §36.1, §36.4',
   }),
   derive({
