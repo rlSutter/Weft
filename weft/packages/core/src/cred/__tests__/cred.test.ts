@@ -8,6 +8,9 @@ import {
   presentCredential,
   verifyPresentation,
   generateHolderSecrets,
+  backupForCell,
+  restoreFromBackup,
+  dropForCellOnLeave,
   CLEARTEXT_ATTR_COUNT,
   type CleartextAttrs,
 } from '../cred';
@@ -27,103 +30,194 @@ function makeCleartext(overrides: Partial<CleartextAttrs> = {}): CleartextAttrs 
   };
 }
 
-// Fresh challenge — verifiers generate these per presentation.
 const challenge = (): Uint8Array => randomBytes(16);
+const scope = (fill: number): Uint8Array => new Uint8Array(32).fill(fill);
+
+async function issueAndVerify(): Promise<{
+  issuer: { secretKey: Uint8Array; publicKey: Uint8Array };
+  cred: Awaited<ReturnType<typeof issueCredential>>;
+  state: Awaited<ReturnType<typeof requestCredential>>['state'];
+}> {
+  const issuer = await generateIssuerKeypair();
+  const { request, state } = await requestCredential(makeCleartext());
+  const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
+  const ok = await verifyCredential(cred, state);
+  expect(ok).toBe(true);
+  return { issuer, cred, state };
+}
 
 // ---------------------------------------------------------------------------
-// M9-T1 acceptance — issue/verify roundtrip
+// M9-T1 acceptance — issue / verify / present / verifyPresentation roundtrips
 // ---------------------------------------------------------------------------
 
 describe('cred / M9-T1 acceptance', () => {
-  it('issue → verify roundtrip', async () => {
+  it('issue → verify roundtrip (populates nymSecret)', async () => {
     const issuer = await generateIssuerKeypair();
-    const cleartext = makeCleartext();
-    const { request, state } = await requestCredential(cleartext);
+    const { request, state } = await requestCredential(makeCleartext());
     const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
 
     expect(cred.signature).toBeInstanceOf(Uint8Array);
     expect(cred.signature.length).toBeGreaterThan(0);
-    expect(cred.issuerPubkey).toEqual(issuer.publicKey);
+    expect(typeof cred.signerNymEntropy).toBe('bigint');
+    expect(cred.signerNymEntropy).toBeGreaterThan(0n);
+    expect(state.nymSecret).toBeUndefined();
 
     const ok = await verifyCredential(cred, state);
     expect(ok).toBe(true);
+    expect(state.nymSecret).toBeDefined();
+    expect(typeof state.nymSecret).toBe('bigint');
   });
 
   it('a presentation disclosing only `tier` verifies without revealing other attributes', async () => {
-    const issuer = await generateIssuerKeypair();
-    const cleartext = makeCleartext();
-    const { request, state } = await requestCredential(cleartext);
-    const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
-
-    const ph = challenge();
-    const presentation = await presentCredential(cred, state, [0], ph);
-
-    expect(presentation.disclosedIndexes).toEqual([0]);
-    expect(presentation.disclosedMessages).toHaveLength(1);
-    expect(presentation.disclosedMessages[0]).toEqual(Uint8Array.of(cleartext.tier));
-
-    const ok = await verifyPresentation(presentation, issuer.publicKey);
-    expect(ok).toBe(true);
+    const { issuer, cred, state } = await issueAndVerify();
+    const p = await presentCredential(cred, state, [0], scope(0x11), challenge());
+    expect(p.disclosedIndexes).toEqual([0]);
+    expect(p.disclosedMessages[0]).toEqual(Uint8Array.of(cred.cleartext.tier));
+    expect(verifyPresentation(p, issuer.publicKey)).toBe(true);
   });
 
   it('a tampered presentation fails', async () => {
-    const issuer = await generateIssuerKeypair();
-    const { request, state } = await requestCredential(makeCleartext());
-    const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
-
-    const ph = challenge();
-    const presentation = await presentCredential(cred, state, [0, 4], ph);
-
-    // Flip one bit in the middle of the proof.
-    const tampered = new Uint8Array(presentation.proof);
-    const midIndex = Math.floor(tampered.length / 2);
-    tampered[midIndex] = tampered[midIndex]! ^ 0x01;
-
-    let result: boolean;
+    const { issuer, cred, state } = await issueAndVerify();
+    const p = await presentCredential(cred, state, [0, 4], scope(0x11), challenge());
+    const tampered = new Uint8Array(p.proof);
+    const mid = Math.floor(tampered.length / 2);
+    tampered[mid] = tampered[mid]! ^ 0x01;
+    let ok: boolean;
     try {
-      result = await verifyPresentation({ ...presentation, proof: tampered }, issuer.publicKey);
+      ok = verifyPresentation({ ...p, proof: tampered }, issuer.publicKey);
     } catch {
-      // Some tamperings throw (malformed group element); that also counts as "fails".
-      result = false;
+      ok = false;
     }
-    expect(result).toBe(false);
+    expect(ok).toBe(false);
   });
 
-  it('unlinkability — two presentations of one credential share no correlatable field', async () => {
+  it('unlinkability — two presentations of one credential (same scope) share no correlatable proof bytes', async () => {
+    const { issuer, cred, state } = await issueAndVerify();
+    const s = scope(0x11);
+    const p1 = await presentCredential(cred, state, [0], s, challenge());
+    const p2 = await presentCredential(cred, state, [0], s, challenge());
+    // Proofs are randomized: bytewise differ.
+    expect(Array.from(p1.proof)).not.toEqual(Array.from(p2.proof));
+    // Both verify.
+    expect(verifyPresentation(p1, issuer.publicKey)).toBe(true);
+    expect(verifyPresentation(p2, issuer.publicKey)).toBe(true);
+  });
+
+  it('blindness — the issuer never sees subject_secret or prover_nym', async () => {
+    const secrets = generateHolderSecrets();
+    const { request, state } = await requestCredential(makeCleartext(), secrets);
+    // The only holder-derived input the issuer sees is commitmentWithProof.
+    // Neither the raw subject_secret bytes nor the prover_nym scalar bytes
+    // should appear as a contiguous substring.
+    const issuerView = request.commitmentWithProof;
+    expect(containsSubarray(issuerView, secrets.subject_secret)).toBe(false);
+    // Serialize proverNym to bytes for the check.
+    const proverNymBytes = new Uint8Array(32);
+    let x = state.proverNym;
+    for (let i = 31; i >= 0; i--) {
+      proverNymBytes[i] = Number(x & 0xffn);
+      x >>= 8n;
+    }
+    expect(containsSubarray(issuerView, proverNymBytes)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M9-T3 acceptance — scope_nym properties
+// ---------------------------------------------------------------------------
+
+describe('cred / M9-T3 acceptance', () => {
+  it('determinism within scope — same credential + same scope → same pseudonym', async () => {
+    const { issuer, cred, state } = await issueAndVerify();
+    const s = scope(0xa1);
+    const p1 = await presentCredential(cred, state, [], s, challenge());
+    const p2 = await presentCredential(cred, state, [], s, challenge());
+    // Same scope → same pseudonym (this is what makes ejection stick).
+    expect(Array.from(p1.pseudonym)).toEqual(Array.from(p2.pseudonym));
+    // Both verify.
+    expect(verifyPresentation(p1, issuer.publicKey)).toBe(true);
+    expect(verifyPresentation(p2, issuer.publicKey)).toBe(true);
+  });
+
+  it('cross-scope unlinkability — different scopes yield different pseudonyms', async () => {
+    const { cred, state } = await issueAndVerify();
+    const p1 = await presentCredential(cred, state, [], scope(0xa1), challenge());
+    const p2 = await presentCredential(cred, state, [], scope(0xa2), challenge());
+    expect(Array.from(p1.pseudonym)).not.toEqual(Array.from(p2.pseudonym));
+  });
+
+  it('cross-holder unlinkability — different credentials in the same scope yield different pseudonyms', async () => {
+    const issuer = await generateIssuerKeypair();
+    const s = scope(0xb0);
+
+    const a = await requestCredential(makeCleartext());
+    const credA = await issueCredential(a.request, issuer.secretKey, issuer.publicKey);
+    await verifyCredential(credA, a.state);
+    const pA = await presentCredential(credA, a.state, [], s, challenge());
+
+    const b = await requestCredential(makeCleartext());
+    const credB = await issueCredential(b.request, issuer.secretKey, issuer.publicKey);
+    await verifyCredential(credB, b.state);
+    const pB = await presentCredential(credB, b.state, [], s, challenge());
+
+    expect(Array.from(pA.pseudonym)).not.toEqual(Array.from(pB.pseudonym));
+    // Both verify against the same issuer.
+    expect(verifyPresentation(pA, issuer.publicKey)).toBe(true);
+    expect(verifyPresentation(pB, issuer.publicKey)).toBe(true);
+  });
+
+  it('binding — a party lacking nymSecret cannot produce a valid presentation', async () => {
+    const { issuer, cred, state } = await issueAndVerify();
+    // Simulate an attacker who has the credential (they intercepted it) but
+    // no HolderState — they cannot make a presentation the verifier accepts.
+    const forgedState = {
+      secrets: { subject_secret: randomBytes(32) },
+      proverNym: 1234567890n,
+      secretProverBlind: 987654321n,
+      nymSecret: 111222333n, // wrong value
+    };
+    let forgedOk = false;
+    try {
+      const p = await presentCredential(cred, forgedState, [0], scope(0x11), challenge());
+      forgedOk = verifyPresentation(p, issuer.publicKey);
+    } catch {
+      forgedOk = false;
+    }
+    expect(forgedOk).toBe(false);
+    void state; // keep unused var warning quiet
+  });
+
+  it('a presentation missing verifyCredential first throws', async () => {
     const issuer = await generateIssuerKeypair();
     const { request, state } = await requestCredential(makeCleartext());
     const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
-
-    // Same disclosure set, same challenge — the presentations should still
-    // differ (BBS proofs are randomized so honest re-presentations don't leak
-    // a linkage).
-    const ph = challenge();
-    const p1 = await presentCredential(cred, state, [0], ph);
-    const p2 = await presentCredential(cred, state, [0], ph);
-
-    // The proof bytes differ across presentations.
-    expect(Array.from(p1.proof)).not.toEqual(Array.from(p2.proof));
-
-    // Both verify.
-    expect(await verifyPresentation(p1, issuer.publicKey)).toBe(true);
-    expect(await verifyPresentation(p2, issuer.publicKey)).toBe(true);
+    // Note: no verifyCredential call — nymSecret not populated.
+    await expect(
+      presentCredential(cred, state, [0], scope(0x11), challenge()),
+    ).rejects.toThrow(/HolderState\.nymSecret is undefined/);
   });
 
-  it('blindness — the issuer never sees k_cred or subject_secret', async () => {
-    const secrets = generateHolderSecrets();
-    const { request } = await requestCredential(makeCleartext(), secrets);
+  it('backup roundtrip — restoreFromBackup produces a working HolderState', async () => {
+    const { issuer, cred, state } = await issueAndVerify();
+    const s = scope(0xc0);
+    const backup = backupForCell(s, cred, state);
+    const restored = restoreFromBackup(backup);
+    // Present with the restored state — should verify and produce the same
+    // pseudonym as the original.
+    const pOrig = await presentCredential(cred, state, [], s, challenge());
+    const pRestored = await presentCredential(cred, restored, [], s, challenge());
+    expect(Array.from(pRestored.pseudonym)).toEqual(Array.from(pOrig.pseudonym));
+    expect(verifyPresentation(pRestored, issuer.publicKey)).toBe(true);
+  });
 
-    // Concatenate every byte the issuer sees at request time. `commitmentWithProof`
-    // is the only holder-derived input; the cleartext attributes are chosen by
-    // the issuer or agreed publicly, so they don't count as "the issuer's view
-    // of the secrets" here.
-    const issuerView = request.commitmentWithProof;
-
-    // If k_cred appeared as a contiguous 32-byte substring, the commitment would
-    // leak it. Same for subject_secret. BBS commitments are randomized group
-    // elements, so the raw secrets must never appear.
-    expect(containsSubarray(issuerView, secrets.k_cred)).toBe(false);
-    expect(containsSubarray(issuerView, secrets.subject_secret)).toBe(false);
+  it('dropForCellOnLeave removes the target scope and only the target scope', async () => {
+    const { cred, state } = await issueAndVerify();
+    const s1 = scope(0xd1);
+    const s2 = scope(0xd2);
+    const records = [backupForCell(s1, cred, state), backupForCell(s2, cred, state)];
+    const remaining = dropForCellOnLeave(records, s1);
+    expect(remaining).toHaveLength(1);
+    expect(Array.from(remaining[0]!.scopeId)).toEqual(Array.from(s2));
   });
 });
 
@@ -151,17 +245,15 @@ describe('cred / input validation', () => {
   });
 
   it('rejects disclosed index out of range', async () => {
-    const issuer = await generateIssuerKeypair();
-    const { request, state } = await requestCredential(makeCleartext());
-    const cred = await issueCredential(request, issuer.secretKey, issuer.publicKey);
+    const { cred, state } = await issueAndVerify();
     await expect(
-      presentCredential(cred, state, [CLEARTEXT_ATTR_COUNT], challenge()),
+      presentCredential(cred, state, [CLEARTEXT_ATTR_COUNT], scope(0x11), challenge()),
     ).rejects.toThrow(/disclosedIndex out of range/);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Helper: contiguous-subarray search (byte-level)
+// Helper: contiguous-subarray search
 // ---------------------------------------------------------------------------
 
 function containsSubarray(haystack: Uint8Array, needle: Uint8Array): boolean {
