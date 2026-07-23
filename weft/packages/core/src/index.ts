@@ -9,6 +9,7 @@ export * from './embed';
 export * from './routing';
 export * from './handshake';
 export * from './health';
+export * from './cred';
 
 // Re-export the nostr-tools NostrEvent type so downstream packages (sim, pwa,
 // porch) do not need a direct dependency on nostr-tools for typing.

@@ -29,6 +29,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@digitalbazaar/bbs-signatures':
+        specifier: github:rlSutter/bbs-signatures#weft-exports
+        version: https://codeload.github.com/rlSutter/bbs-signatures/tar.gz/49b20ee25e06b5aa410af353dfe156c3c9d6cf16
       '@noble/ciphers':
         specifier: ^1.0.0
         version: 1.3.0
@@ -699,6 +702,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@digitalbazaar/bbs-signatures@https://codeload.github.com/rlSutter/bbs-signatures/tar.gz/49b20ee25e06b5aa410af353dfe156c3c9d6cf16':
+    resolution: {tarball: https://codeload.github.com/rlSutter/bbs-signatures/tar.gz/49b20ee25e06b5aa410af353dfe156c3c9d6cf16}
+    version: 3.1.1-0
+    engines: {node: '>=18'}
+
   '@emnapi/runtime@1.11.2':
     resolution: {integrity: sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA==}
 
@@ -1085,12 +1093,20 @@ packages:
     resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/curves@2.2.0':
+    resolution: {integrity: sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
+
+  '@noble/hashes@2.2.0':
+    resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
 
   '@protobufjs/aspromise@1.1.2':
@@ -3690,6 +3706,11 @@ snapshots:
   '@cbor-extract/cbor-extract-win32-x64@2.2.2':
     optional: true
 
+  '@digitalbazaar/bbs-signatures@https://codeload.github.com/rlSutter/bbs-signatures/tar.gz/49b20ee25e06b5aa410af353dfe156c3c9d6cf16':
+    dependencies:
+      '@noble/curves': 2.2.0
+      '@noble/hashes': 2.2.0
+
   '@emnapi/runtime@1.11.2':
     dependencies:
       tslib: 2.8.1
@@ -3973,9 +3994,15 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.0.1
 
+  '@noble/curves@2.2.0':
+    dependencies:
+      '@noble/hashes': 2.2.0
+
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.0.1': {}
+
+  '@noble/hashes@2.2.0': {}
 
   '@protobufjs/aspromise@1.1.2': {}
 
