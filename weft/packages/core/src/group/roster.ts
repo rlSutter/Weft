@@ -18,6 +18,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { openWithGroupKey, sealWithGroupKey } from './group-crypto';
+import { SCOPE_NYM_BYTES } from '../cred/cred';
 
 /** Bumped whenever the roster wire schema changes. */
 export const ROSTER_WIRE_VERSION = 1;
@@ -130,11 +131,11 @@ export function deserializeRoster(bytes: Uint8Array): Roster | null {
     const active = new Map<string, ScopeNym>();
     const ejected = new Map<string, ScopeNym>();
     for (const hex of wire.active) {
-      if (typeof hex !== 'string' || hex.length !== 64) return null;
+      if (typeof hex !== 'string' || hex.length !== SCOPE_NYM_BYTES * 2) return null;
       active.set(hex, hexToBytes(hex));
     }
     for (const hex of wire.ejected) {
-      if (typeof hex !== 'string' || hex.length !== 64) return null;
+      if (typeof hex !== 'string' || hex.length !== SCOPE_NYM_BYTES * 2) return null;
       ejected.set(hex, hexToBytes(hex));
     }
     // Discard the mutable initial roster; keep the loaded one.

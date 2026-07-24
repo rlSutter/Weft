@@ -4,3 +4,4 @@ export * from './group-crypto';
 export * from './k-sign';
 export * from './join';
 export * from './messaging';
+export * from './ejection';

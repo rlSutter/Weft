@@ -34,6 +34,7 @@ import { Tags } from '../kinds/tags';
 import { openWithGroupKey, sealWithGroupKey } from './group-crypto';
 import { openTextFrom, sealTextTo } from '../wrap/nip44';
 import { generateKeypair } from '../keys/keys';
+import { SCOPE_NYM_BYTES } from '../cred/cred';
 
 const KIND_GROUP_MESSAGE = 4920;
 const KIND_GROUP_ROTATION = 4921;
@@ -85,8 +86,8 @@ export function buildGroupMessageEvent(
   channelId: string,
   now: number = Math.floor(Date.now() / 1000),
 ): NostrEvent {
-  if (senderScopeNym.length !== 32) {
-    throw new Error(`senderScopeNym must be 32 bytes (got ${senderScopeNym.length})`);
+  if (senderScopeNym.length !== SCOPE_NYM_BYTES) {
+    throw new Error(`senderScopeNym must be ${SCOPE_NYM_BYTES} bytes (got ${senderScopeNym.length})`);
   }
   const plaintext: GroupMessagePlaintext = {
     v: GROUP_MSG_WIRE_VERSION,
@@ -139,7 +140,7 @@ export function parseGroupMessageEvent(
     if (pt === null) return null;
     const inner = JSON.parse(new TextDecoder().decode(pt)) as GroupMessagePlaintext;
     if (inner.v !== GROUP_MSG_WIRE_VERSION) return null;
-    if (typeof inner.senderScopeNym !== 'string' || inner.senderScopeNym.length !== 64) return null;
+    if (typeof inner.senderScopeNym !== 'string' || inner.senderScopeNym.length !== SCOPE_NYM_BYTES * 2) return null;
     return {
       senderScopeNym: hexToBytes(inner.senderScopeNym),
       body: inner.body,

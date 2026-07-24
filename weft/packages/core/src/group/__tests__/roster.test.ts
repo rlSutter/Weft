@@ -14,7 +14,7 @@ import {
 } from '../roster';
 import { generateGroupKey, sealWithGroupKey, openWithGroupKey } from '../group-crypto';
 
-const nym = (fill = 0): Uint8Array => new Uint8Array(32).fill(fill);
+const nym = (fill = 0): Uint8Array => new Uint8Array(48).fill(fill);
 
 describe('roster / basic membership operations', () => {
   it('starts empty', () => {

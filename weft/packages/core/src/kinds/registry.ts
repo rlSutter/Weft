@@ -93,11 +93,11 @@ const PUBLIC_KINDS: readonly KindDef[] = [
     implements: 'DD §4, §15, §30, §33.2, §35 F1',
   }),
   derive({
+    // v2Only lifted M10-T4 (2026-07-23) — ejection now emits these live.
     number: 4904,
     name: 'EjectionAttestation',
     retentionClass: 'P',
-    v2Only: true, // groups (and thus ejections) do not exist in v0
-    implements: 'DD §7, §18.2, §24.3, §33.2',
+    implements: 'DD §7, §18.2, §24.3, §33.2, §36.2',
   }),
   derive({
     number: 4905,

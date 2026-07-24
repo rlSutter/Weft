@@ -20,11 +20,12 @@ interface Member {
   pSignHex: string;
 }
 
-/** Make a member: fake nym_secret, real deriveKSign for cell-scoped signing. */
+/** Make a member: fake nym_secret, real deriveKSign for cell-scoped signing.
+ *  scope_nym is 48 bytes (BLS12-381 G1 compressed) — fake ones just fill. */
 function makeMember(scopeId: Uint8Array, seed: bigint, scopeNymByte: number): Member {
   const { kSign, pSign } = deriveKSign(seed, scopeId);
   return {
-    scopeNym: new Uint8Array(32).fill(scopeNymByte),
+    scopeNym: new Uint8Array(48).fill(scopeNymByte),
     kSign,
     pSignHex: bytesToHex(pSign),
   };
@@ -71,7 +72,7 @@ describe('M10-T3 group messaging', () => {
     const cellId = 'dd'.repeat(32);
     const channel = channelIdForCell(cellId);
     const groupKey = generateGroupKey();
-    const scopeNym = new Uint8Array(32).fill(0x42);
+    const scopeNym = new Uint8Array(48).fill(0x42);
 
     const msg = buildGroupMessageEvent(scopeNym, 'test body', groupKey, channel);
 
@@ -93,7 +94,7 @@ describe('M10-T3 group messaging', () => {
   });
 
   it('wrong group key yields null (tamper resistance via AEAD)', () => {
-    const scopeNym = new Uint8Array(32).fill(0x77);
+    const scopeNym = new Uint8Array(48).fill(0x77);
     const goodKey = generateGroupKey();
     const badKey = generateGroupKey();
     const msg = buildGroupMessageEvent(

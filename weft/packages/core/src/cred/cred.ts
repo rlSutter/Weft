@@ -39,6 +39,9 @@ import { randomBytes } from '@noble/hashes/utils';
 /** Ciphersuite Weft pins for the alpha (per DD §36.1 — BLS12-381, SHA-256). */
 export const WEFT_CIPHERSUITE = CIPHERSUITES.BLS12381_SHA256;
 
+/** Length of a `scope_nym` (a.k.a. pseudonym) in bytes: BLS12-381 G1 compressed. */
+export const SCOPE_NYM_BYTES = 48;
+
 /**
  * Blind-BBS api_id, precomputed. Passed to every Commit/BlindSign/etc. call
  * to work around an upstream ordering bug: the blind functions compute their
