@@ -222,11 +222,11 @@ const INNER_KINDS: readonly KindDef[] = [
     implements: 'DD §7, §9.1, §33.3',
   }),
   derive({
+    // v2Only lifted M10-T2 (2026-07-23) — group join flow now emits these live.
     number: 4922,
     name: 'CharterConsentReceipt',
     retentionClass: 'D',
-    v2Only: true, // charters beyond the invite-displayed one are v2 (build-list §13)
-    implements: 'DD §14.6, §29, §33.3',
+    implements: 'DD §14.6, §29, §33.3, §36.2 amendment 2026-07-19',
   }),
   derive({
     number: 4923,
@@ -266,17 +266,17 @@ const INNER_KINDS: readonly KindDef[] = [
     implements: 'DD §36.1, §36.4',
   }),
   derive({
+    // v2Only lifted M10-T2 (2026-07-23) — group join flow now emits these live.
     number: 4932,
     name: 'GroupJoinRequest',
     retentionClass: 'E',
-    v2Only: true,
     implements: 'DD §36.2, §36.4',
   }),
   derive({
+    // v2Only lifted M10-T2 (2026-07-23) — group join flow now emits these live.
     number: 4933,
     name: 'MembershipGrant',
     retentionClass: 'D',
-    v2Only: true,
     implements: 'DD §36.2, §36.4',
   }),
 ];

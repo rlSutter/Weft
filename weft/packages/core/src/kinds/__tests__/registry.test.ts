@@ -92,7 +92,7 @@ describe('kind registry — privacy and scope flags', () => {
     // were promoted out of v2Only at M9-T4 (2026-07-22) when the credential engine
     // began emitting them live.
     expect(new Set(v2Numbers)).toEqual(
-      new Set([4904, 4905, 4906, 4907, 4911, 4920, 4921, 4922, 4923, 4924, 4932, 4933]),
+      new Set([4904, 4905, 4906, 4907, 4911, 4920, 4921, 4923, 4924]),
     );
   });
 });
