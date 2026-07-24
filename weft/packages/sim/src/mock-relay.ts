@@ -114,5 +114,9 @@ function matches(evt: NostrEvent, filter: RelayFilter): boolean {
     const pTags = evt.tags.filter((t: string[]) => t[0] === 'p').map((t: string[]) => t[1]);
     if (!filter.p.some((want: string) => pTags.includes(want))) return false;
   }
+  if (filter.h) {
+    const hTags = evt.tags.filter((t: string[]) => t[0] === 'h').map((t: string[]) => t[1]);
+    if (!filter.h.some((want: string) => hTags.includes(want))) return false;
+  }
   return true;
 }

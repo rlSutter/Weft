@@ -14,6 +14,8 @@ export interface RelayFilter {
   readonly kinds?: readonly number[];
   /** Match by `p` tag (recipient) — the most common Weft filter. */
   readonly p?: readonly string[];
+  /** Match by `h` tag (group-message channel handle) — DD §36.2 groups. */
+  readonly h?: readonly string[];
   /** Match by event ids. */
   readonly ids?: readonly string[];
   /** `created_at >= since`. */

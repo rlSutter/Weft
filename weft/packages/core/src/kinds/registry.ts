@@ -208,18 +208,18 @@ const INNER_KINDS: readonly KindDef[] = [
     implements: 'DD §9.1, §15, §33.3',
   }),
   derive({
+    // v2Only lifted M10-T3 (2026-07-23) — group messaging now emits these live.
     number: 4920,
     name: 'GroupMessage',
     retentionClass: 'D',
-    v2Only: true,
-    implements: 'DD §7, §9.1, §33.3',
+    implements: 'DD §7, §9.1, §33.3, §36.2',
   }),
   derive({
+    // v2Only lifted M10-T3 (2026-07-23) — group messaging now emits these live.
     number: 4921,
     name: 'GroupKeyRotation',
     retentionClass: 'D',
-    v2Only: true,
-    implements: 'DD §7, §9.1, §33.3',
+    implements: 'DD §7, §9.1, §33.3, §36.2',
   }),
   derive({
     // v2Only lifted M10-T2 (2026-07-23) — group join flow now emits these live.
