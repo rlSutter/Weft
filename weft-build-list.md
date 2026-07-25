@@ -242,8 +242,14 @@ Everything in the group and persona layers consumes this. Build and prove it in 
 **M10-T5 Group-as-respondent (completes F9).** **4911** group-interest declaration (greeter-published; interests + authorized scope_nyms); authorized members emit `grp`-tagged **4912** with a group-scoped presentation; seeker handshake reveals "member of {group}, per charter."
 *Accept:* sim: a query matching the group's declared interests draws a group reply from an authorized member; an unauthorized member cannot emit a valid group reply; the reveal shows group membership, not the member's identity, unless a subsequent pairwise handshake is run.
 
-**M10-T6 MLS transition (large groups).** At >150 members, migrate to MLS (RFC 9420) via a maintained MLS library: charter-flagged migration, `Welcome` to current members, `Commit` messages carried inside 4921 thereafter.
-*Accept:* a group crossing 150 migrates without message loss; post-migration join/remove/rotate use MLS handshake messages; O(log n) rotation verified by counting ciphertexts vs. the naive path. (Large; may split into T6a migration / T6b steady-state.)
+**M10-T6 MLS transition — moved to standalone milestone M10.5 (2026-07-25).** The original T6 was scoped as part of M10, but the work (evaluating or vendoring an MLS library, designing the migration bridge, sim-testing a 200-member group crossing the threshold) is genuinely multi-day and blocks nothing at Ostrom scale (≤150 members, which M10-T1–T5 cover fully). Promoted below to keep M10's shipped scope honest.
+
+### Milestone M10.5 — MLS transition (large groups >150) — DEFERRED
+
+**M10.5-T1 MLS integration.** Pick a maintained MLS library (RFC 9420) or vendor from the same publisher pattern used for BBS+. Wrap `MlsGroup` operations in `core/src/group/mls-transition.ts`. Charter-flagged migration: the group publishes an MLS `Welcome` to current members, and thereafter uses MLS `Commit` messages carried inside 4921 for all membership changes.
+*Accept:* a group crossing 150 migrates without message loss; post-migration join/remove/rotate use MLS handshake messages; O(log n) rotation verified by counting ciphertexts vs. the naive M10-T3 path.
+
+**Not blocking M11 (personas) or M12 (rendezvous).** Both operate at Ostrom scale by construction.
 
 ### Milestone M11 — Persona layer (`core/src/persona` + `pwa` surfaces)
 

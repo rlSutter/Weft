@@ -16,6 +16,93 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added — 2026-07-20 through 2026-07-25 — v2 credential + group layers (M9 + M10 T1–T5) — reviewed by: pending
+
+The v2 credential engine (M9) and group layer (M10-T1 through T5) are now
+live in `core/`. Ostrom-scale groups (≤150 members) can create charters,
+admit members via blind issuance, exchange messages under a shared group
+key with O(n) rotation, eject members whose scope_nyms are permanently
+blocked, and respond as a group without exposing which member is answering.
+
+Test count workspace-wide: **234 total** (was 157). Bundle size PWA:
+446 KB / 150 KB gzip (unchanged from M9 — new group code is in `core/`
+and not yet imported by the alpha PWA).
+
+**M9 — Credential engine (`core/src/cred/`) shipped in full:**
+- **M9-T1** BBS+ wrapper (`cred.ts`, `bbs.ts`) over the IETF blind-BBS +
+  per-verifier-pseudonym drafts. Wraps `@digitalbazaar/bbs-signatures`
+  via the [rlSutter fork](https://github.com/rlSutter/bbs-signatures)
+  that adds `./blind` and `./pseudonym` subpath exports (upstream PR
+  [digitalbazaar/bbs-signatures#22](https://github.com/digitalbazaar/bbs-signatures/pull/22)
+  pending). Attribute schema per DD §36.1: 5 cleartext + 1 committed.
+- **M9-T2** k-show nullifiers (`nullifier.ts`) — Brands' double-spending
+  trapdoor over BLS12-381 Fr; the (k+1)th over-spend recovers the root
+  secret in the clear (self-incrimination).
+- **M9-T3** credential-bound scope_nym — refactored T1 to use the
+  pseudonym-BBS variant end-to-end. Determinism within scope + cross-
+  scope unlinkability + binding (forger without `nym_secret` fails)
+  + `k_cred` lifecycle helpers (`backupForCell`, `restoreFromBackup`,
+  `dropForCellOnLeave`).
+- **M9-T4** epoch clock, 4930/4931 wire flow, 4903 revocation via
+  handle. Sim test: subject requests, issuer issues, subject verifies,
+  presents; issuer voids → next verify fails.
+
+**M10 — Group layer (`core/src/group/`) shipped T1 through T5:**
+- **M10-T1** charter + roster + group-key AEAD (`charter.ts`,
+  `roster.ts`, `group-crypto.ts`). Kind 4900 with v2 field set;
+  m-of-n amendments; cell id = genesis event id; roster tracks active
+  + ejected sets (ejection-sticks enforced by the data structure);
+  XChaCha20-Poly1305 for group-key AEAD.
+- **M10-T2** join flow with blind issuance (`join.ts`, `k-sign.ts`).
+  4932 signed by fresh `p_join_eph`; 4933 wrapped to `p_join_eph`;
+  4922 consent receipt signed by cell-scoped `k_sign = HKDF(nym_secret,
+  scope_id)`. Sim test asserts the greeter's full view contains no
+  bytes of the joiner's identity pubkey.
+- **M10-T3** messaging + O(n) rotation (`messaging.ts`). 4920 messages
+  under the group key, h-tagged; sender is scope_nym inside ciphertext.
+  4921 rotation packages one NIP-44 seal per remaining member's
+  `p_sign`. Ejected members can't decrypt post-rotation.
+- **M10-T4** ejection = key rotation (`ejection.ts`). 4904 m-of-n
+  ejection attestation with structured `EjectionVerdict` (below-
+  threshold, foreign-signer, duplicate-signer, wrong-cell, bad-
+  signature). Followed by 4921 excluding the ejected `scope_nym`.
+- **M10-T5** group-as-respondent (`respondent.ts`) — completes DD §35
+  F9. 4911 declarations encrypted under the group key; grp-tagged
+  4912 replies carry a scope-bound credential presentation; verifier
+  checks scope binding + auth list + BBS proof validity.
+
+**Deferred: M10-T6 (MLS transition, >150 members)** — promoted to a
+standalone milestone **M10.5** in `weft-build-list.md`. Rationale
+recorded there: the work (MLS library evaluation or vendoring, migration
+bridge, sim tests with 200-member groups) is multi-day and blocks nothing
+at Ostrom scale. Ostrom-scale groups are fully supported by M10-T1–T5
+today.
+
+**Wire kinds promoted out of `v2Only` during this phase:**
+- M9-T4: 4930 CredentialRequest, 4931 CredentialIssuance
+- M10-T2: 4922 CharterConsentReceipt, 4932 GroupJoinRequest, 4933 MembershipGrant
+- M10-T3: 4920 GroupMessage, 4921 GroupKeyRotation
+- M10-T4: 4904 EjectionAttestation
+- M10-T5: 4911 GroupInterestDeclaration
+
+Remaining `v2Only`: {4905 HealthBeacon, 4906 RelayOps, 4907 ModelRegistry,
+4923 Tombstone, 4924 EscrowSetup} — all v2.1+ features per build-list §13.
+
+**Non-obvious details worth remembering** (also in commit messages):
+- `@digitalbazaar/bbs-signatures` has an ordering bug: blind functions
+  compute default `api_id` before resolving the ciphersuite string, so
+  passing a string yields a garbage api_id. Workaround: pass `api_id`
+  explicitly to every call. Candidate for a second upstream PR.
+- `signer_nym_entropy` is a `bigint` scalar, not "bytes of entropy".
+- `L` in `BlindProofVerify` is the CLEARTEXT message count.
+- Scope_nym is **48 bytes** (BLS12-381 G1 compressed), not 32.
+- Group keys can't be sealed directly through NIP-44 (UTF-8 roundtrip
+  is lossy). The rotation code hex-encodes before sealing.
+- Recovered root from `detectDoubleSpend` is Fr-reduced; byte-compare
+  against `raw_root mod Fr.ORDER`.
+- Revocation-handle disclosure costs cross-scope pseudonym unlinkability
+  for handle-observers — accumulator scheme deferred to v3.
+
 ### Fixed (spec) — 2026-07-19 — reviewed by: Fable
 
 - **DD §36.1 amendment: scope_nym is now a credential-bound nullifier.** Rewritten as `PRF(k_cred, scope_id)` where `k_cred` is a per-credential secret committed in the credential and proven in ZK — replacing the earlier `PRF(root_secret, scope_id)` which silently made unlinkability-from-issuance and bounded-compromise conditional on root-secret secrecy. Adds `k_cred_commitment` to the credential attribute list and a `k_cred` lifecycle paragraph (backup-blob storage for current memberships; discard-on-leave as client discipline). Also carries a "Why not `PRF(root_secret, scope_id)`" callout so the failure mode isn't rediscovered later. Landed after the read-back cycle recorded in `SYNTHESIS-NOTES.md`.
