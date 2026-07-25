@@ -150,11 +150,11 @@ const INNER_KINDS: readonly KindDef[] = [
     implements: 'DD §3, §8, §17, §25, §33.3, §35 F2/F5',
   }),
   derive({
+    // v2Only lifted M10-T5 (2026-07-23) — group-as-respondent now emits these live.
     number: 4911,
     name: 'GroupInterestDeclaration',
     retentionClass: 'P', // published under the group's key on the group's charter relays
-    v2Only: true, //        group behavior is v2; registry-complete so number is reserved
-    implements: 'DD §5, §7, §20.3, §33.3, §35 F9',
+    implements: 'DD §5, §7, §20.3, §33.3, §35 F9, §36.2',
   }),
   derive({
     number: 4912,

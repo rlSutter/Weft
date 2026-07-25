@@ -118,8 +118,11 @@ describe('event codec — v0 emission guards', () => {
     expect(() => buildEvent({ kind: 4927 })).toThrow(/registryOnly/);
   });
 
-  it('refuses to build a v2Only kind (4911 group-interest declaration)', () => {
-    expect(() => buildEvent({ kind: 4911 })).toThrow(/v2Only/);
+  it('refuses to build a v2Only kind (4905 health beacon)', () => {
+    // 4911 was v2Only during v0. M10-T5 promoted it. Substitute a still-
+    // v2Only kind to prove the guard still fires on kinds that haven't been
+    // lifted (4905 = HealthBeacon, still v2 per build-list §13).
+    expect(() => buildEvent({ kind: 4905 })).toThrow(/v2Only/);
   });
 
   it('4930 credential requests are emittable (v2Only lifted at M9-T4)', () => {

@@ -5,3 +5,4 @@ export * from './k-sign';
 export * from './join';
 export * from './messaging';
 export * from './ejection';
+export * from './respondent';

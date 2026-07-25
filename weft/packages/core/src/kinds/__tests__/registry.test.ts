@@ -65,10 +65,16 @@ describe('kind registry — privacy and scope flags', () => {
     expect(k!.privateOnly).toBe(true);
   });
 
-  it('kind 4911 (GroupInterestDeclaration) is v2Only', () => {
+  it('kind 4911 (GroupInterestDeclaration) is emittable (v2Only lifted at M10-T5)', () => {
+    // 4911 was v2Only during v0. M10-T5 (group-as-respondent going live)
+    // promoted it. We keep the assertion here — as a canary — pointing at
+    // 4905 (HealthBeacon), which is still v2 per build-list §13.
     const k = kindByNumber(4911);
     expect(k).toBeDefined();
-    expect(k!.v2Only).toBe(true);
+    expect(k!.v2Only).toBeUndefined();
+    const beacon = kindByNumber(4905);
+    expect(beacon).toBeDefined();
+    expect(beacon!.v2Only).toBe(true);
   });
 
   it('kind 4927 (TermsVocabulary) is registryOnly and not an event', () => {
@@ -92,7 +98,7 @@ describe('kind registry — privacy and scope flags', () => {
     // were promoted out of v2Only at M9-T4 (2026-07-22) when the credential engine
     // began emitting them live.
     expect(new Set(v2Numbers)).toEqual(
-      new Set([4905, 4906, 4907, 4911, 4923, 4924]),
+      new Set([4905, 4906, 4907, 4923, 4924]),
     );
   });
 });
