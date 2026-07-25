@@ -11,6 +11,7 @@ export * from './handshake';
 export * from './health';
 export * from './cred';
 export * from './group';
+export * from './persona';
 
 // Re-export the nostr-tools NostrEvent type so downstream packages (sim, pwa,
 // porch) do not need a direct dependency on nostr-tools for typing.
