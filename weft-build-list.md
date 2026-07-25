@@ -259,7 +259,11 @@ Everything in the group and persona layers consumes this. Build and prove it in 
 **M11-T2 Persona as a full client identity.** A persona asks/matches/joins/messages via the identical v0/v2 engines, presenting anonymous credentials instead of named chains; it never rides the root's contact graph.
 *Accept:* sim: a persona completes a full ask→match→handshake with its trust line rendered as "vouched member, identity sealed"; a test asserts no persona operation ever reads or reuses the primary's contacts.
 
-**M11-T3 Persona UX (`pwa`, per UX spec v2 addendum).** Creation in settings only; visually distinct shell (accent from persona key); the §18.5 warning verbatim; persona-scoped interest lists with the **overlap detector**; separate unlock by default.
+**M11-T3 Persona UX — moved to standalone milestone M11.5 (2026-07-25).** Same reasoning as M10-T6: PWA UX work of this scope (settings creation, distinct shell tint from persona key, verbatim §18.5 warning, persona-scoped interest lists with overlap detector, separate unlock) is genuinely multi-day and belongs on its own milestone. Ostrom-scale personas at the protocol layer are fully supported by M11-T1 + M11-T2.
+
+### Milestone M11.5 — Persona UX (`pwa`) — DEFERRED
+
+**M11.5-T1 PWA persona UX** (per UX spec v2 addendum). Creation in settings only; visually distinct shell (accent from persona key); the §18.5 warning verbatim; persona-scoped interest lists with the **overlap detector**; separate unlock by default.
 *Accept:* creating a persona re-tints the shell; the overlap detector warns before sending an ask that closely matches another self's; personas sit behind a separate unlock; component tests confirm no cross-persona state bleed in the UI.
 
 ### Milestone M12 — Rendezvous (anonymous-credential entry, DD §17.4)

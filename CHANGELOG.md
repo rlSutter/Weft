@@ -16,6 +16,50 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added — 2026-07-25 — persona layer (M11 T1–T2) — reviewed by: pending
+
+The v2 persona layer is live in `core/src/persona/`. Personas are unlinkable
+secondary selves; siblings and root are cryptographically unlinkable at the
+key level, but ALL personas share the root secret for k-show purposes —
+which is what enforces "no root exceeds k active personas per epoch."
+
+- **M11-T1** derivation + tracking + k-show binding.
+  * `personaRoot(rootSecret, index)` — hardened HKDF-SHA256 → secp256k1
+    keypair. Rejection-resamples on the ~2^-128 invalid-scalar branch.
+  * `PersonaDirectory` — local index list with add / remove / find /
+    serialize / deserialize. `removePersona` refuses index 0 (root
+    persona is load-bearing). Serialized directory travels in the
+    encrypted backup blob (§9.2) so a single social recovery
+    reconstructs every persona by re-deriving from root + index.
+  * `personaShareTicket(rootSecret, personaIndex, issuerId, epoch,
+    challenge)` — wraps M9-T2's `makeShareTicket` with
+    `showIndex = personaIndex mod k`. The (k+1)th active persona in
+    a given (issuer, epoch) forces a nullifier collision; two colliding
+    presentations with distinct verifier challenges recover the root
+    via `detectDoubleSpend`. Cheating is self-incriminating; honest
+    use within k is fully unlinkable.
+
+- **M11-T2** persona as full client identity (sim).
+  * Persona ships as an ordinary Nostr identity (keypair derived from
+    root) plus anonymous BBS+ credentials obtained from cells.
+  * Uses the identical M9/M10 engines — no persona-specific plumbing
+    at the protocol layer.
+  * Sim verifies: persona's Nostr pubkey unrelated to root's;
+    persona presents a credential yielding a scope_nym (never its
+    Nostr pubkey); two personas from the same root produce distinct
+    scope_nyms in the same cell (credentials are per-persona);
+    contacts are per-persona; deriveKSign accepts persona-generated
+    inputs; directory survives a serialize/restore cycle.
+
+**Deferred: M11-T3 (PWA persona UX)** — promoted to standalone
+milestone **M11.5** in `weft-build-list.md`. Same scope-boundary call
+as M10-T6/M10.5: settings creation, distinct shell tint, §18.5 warning,
+overlap detector, separate unlock is genuinely multi-day PWA work and
+belongs on its own milestone. Protocol half is complete today.
+
+Test count workspace-wide: **262 total** (was 234). Core: 206
+(was 185). Sim: 50 (was 43).
+
 ### Added — 2026-07-20 through 2026-07-25 — v2 credential + group layers (M9 + M10 T1–T5) — reviewed by: pending
 
 The v2 credential engine (M9) and group layer (M10-T1 through T5) are now
