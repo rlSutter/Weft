@@ -18,3 +18,10 @@ Thumbs.db
 *.swp
 
 .claude/
+
+# Personal files that ended up in the repo root by accident.
+# If any of these look wrong later, delete the line — nothing here is
+# structural.
+Account Holdings*.csv
+SVCA_Candidate_Application*.pdf
+LOB1
