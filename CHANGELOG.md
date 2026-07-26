@@ -16,6 +16,35 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added — 2026-07-25 — rendezvous (M12-T1) — reviewed by: pending
+
+Vouched-anonymous rendezvous is live in `core/src/group/rendezvous.ts`.
+A rendezvous is a group whose join is automatic on credential presentation
+— everyone proven-vouched, no one identified. Reuses M9 credentials + M10
+charter/roster/messaging/ejection primitives; the only wire difference
+from a regular cell is a marker in `house_rules[0]`, which piggybacks on
+the existing DD §36.2 charter shape without extending it.
+
+- **M12-T1** rendezvous policy + auto-admit gate.
+  * `RENDEZVOUS_MARKER = "RENDEZVOUS"` — charter is a rendezvous iff
+    `house_rules[0]` starts with the marker.
+  * `makeRendezvousPayload` + `buildRendezvousCharterEvent` — builders
+    that prepend the marker and encode the accepted-issuer-tag policy
+    into `house_rules[1]` ("Accepts: any" or "Accepts: <hex list>").
+  * `autoAdmit(presentation, charter, cellIdHex, issuerBbsPubkey)` —
+    the greeter step collapsed to a cryptographic gate. Structured
+    `AutoAdmitVerdict` enum surfaces failure reasons without exposing
+    identities.
+  * `acceptedIssuerScopeTags(payload)` reads the policy back out.
+
+Cross-rendezvous unlinkability holds by construction: same credential at
+rendezvous A vs B produces different scope_nyms (M9-T3 determinism plus
+distinct cell ids). Colluding rendezvous operators cannot link the same
+person across venues from wire evidence alone.
+
+Test count workspace-wide: **272 total** (was 262). Sim: 60 (was 50).
+Core unchanged at 206.
+
 ### Added — 2026-07-25 — persona layer (M11 T1–T2) — reviewed by: pending
 
 The v2 persona layer is live in `core/src/persona/`. Personas are unlinkable
