@@ -1,6 +1,6 @@
 # Observability
 
-> **Canonical status.** *Governs:* what may/must not be logged or emitted, structured-logging rules, dev-time tooling that must not ship, the process for adding a new metric or log field. *Defers to:* `weft-design.md` §10 (beacons, alarm conditions), `SECURITY.md` (what leaking a signal *means* as a threat). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Additions require Fable sign-off recorded in `CHANGELOG.md`; silent additions of telemetry are treated as security incidents.
+> **Canonical status.** *Governs:* what may/must not be logged or emitted, structured-logging rules, dev-time tooling that must not ship, the process for adding a new metric or log field. *Defers to:* `weft-design.md` §10 (beacons, alarm conditions), `SECURITY.md` (what leaking a signal *means* as a threat). *Last reviewed:* 2026-07-26 (post-M13; v2 credential/group/persona additions never leave the device — no new counters, no new log fields at this milestone). Additions require Fable sign-off recorded in `CHANGELOG.md`; silent additions of telemetry are treated as security incidents.
 
 **The one rule this document exists to enforce: measure the system, never the people** (DD §10). Observability that violates that rule is worse than none — it becomes the surveillance chokepoint the whole design refuses. Every log line, counter, dashboard, and debug print in this repo must pass a red-team test before it lands: *"could this signal, alone or joined with others, deanonymize a person, reveal an interest, or reconstruct an edge of the social graph?"* If plausibly yes, it doesn't ship.
 
@@ -28,6 +28,8 @@ Per build-list M5-T5, v0 ships **local, increment-only counters** stored in each
 That's it. No publishing, no beacon event, no aggregator, no dashboard, no server. They surface on the "What leaves this phone" screen (UX §15) captioned *"these numbers never leave this phone."*
 
 **Aggregate only — never per-contact.** *(New, DD §35 F1.)* These counters are device-wide scalars. No counter may ever be broken down per contact, per path, or per interest in any exported, logged, or published form — a per-contact forward count *is* an edge of the social graph, which is protected asset #1 (`SECURITY.md`). The private routing sketch (per-contact centroids) is likewise never logged, never exported, and never displayed as a ranking of people.
+
+**v2 layers add zero new emitted counters** *(M9–M13, 2026-07-26).* The credential engine, group layer, personas, and rendezvous all run without publishing any observability signal to relays. Group-lifecycle events (join/message/eject/rotate) ARE published — that's the wire protocol — but they carry only pseudonyms, hashes, and ciphertext (Gate 3 extended per M13-T2). If a future v2 refinement wants per-cell health metrics (e.g., dead-query-ratio for group-as-respondent), it goes through the *Adding a new metric or log field* checklist below — including the graph test.
 
 ### Beacon publishing is DEFERRED
 The beacon design (DD §10.2 — signed, bucketed, noised, k-anonymity-floored, opt-in) does **not** ship in v0 (build-list §13). Zero telemetry leaves the device. This is enforced **by not writing the beacon-publishing code**, not by a feature flag — there is no flag to flip, no endpoint to point at.

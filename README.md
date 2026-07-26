@@ -1,6 +1,6 @@
 # Weft
 
-> **Canonical status.** *Governs:* repo landing page — reading order, current release status, quick-start, Netlify deploy pattern for `weft.info`. *Defers to:* every doc it links to (each of those is canonical within its own scope). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). When drift is detected during the build, this doc updates first; the change flows to `CHANGELOG.md`.
+> **Canonical status.** *Governs:* repo landing page — reading order, current release status, quick-start, Netlify deploy pattern for `weft.info`. *Defers to:* every doc it links to (each of those is canonical within its own scope). *Last reviewed:* 2026-07-26 (post-M13; v2 protocol layer complete in `core/`). When drift is detected during the build, this doc updates first; the change flows to `CHANGELOG.md`.
 
 *A post-platform communications channel.*
 
@@ -12,7 +12,13 @@ Social connection should be infrastructure, not a destination — a communicatio
 
 ## Status
 
-**v0.1.0-alpha** (2026-07-17) — the PWA is a real client and the protocol works end-to-end on public Nostr relays. All four release gates verified in sim; Gate 3 (no plaintext vouches) and Gate 2 initiator-side (silent decline) additionally verified on public Nostr relays. See `CHANGELOG.md` for what's in, what's honestly deferred, and the DD §36.1/§36.2 amendments landed 2026-07-19.
+**v0.1.0-alpha** (2026-07-17) — the PWA is a real client and the v0 protocol works end-to-end on public Nostr relays. All four v0 release gates verified in sim; Gate 3 (no plaintext vouches) and Gate 2 initiator-side (silent decline) additionally verified on public Nostr relays.
+
+**v2 protocol layer complete in `core/`** (2026-07-26, unreleased) — M9 credential engine (BBS+ over BLS12-381 with per-verifier pseudonyms), M10 group layer (charter, roster, blind-issuance join, group messaging, ejection, group-as-respondent), M11 personas (hardened HKDF derivation, k-show binding), M12 rendezvous (vouched-anonymous entry), and M13 release gates 5 and 6 (plurality bounded, accountability scoped) all shipped and green. **283 tests** across the workspace. The v2 code is not yet wired into the alpha PWA.
+
+**Two milestones deferred with clean boundaries:** M10.5 (MLS large-group transition, doesn't block Ostrom-scale groups ≤150) and M11.5 (PWA persona UX — settings creation, shell tint, overlap detector, separate unlock).
+
+See `CHANGELOG.md` for the per-milestone story, and `SECURITY.md` for the current release-gate table.
 
 Try the live site (once deployed): https://weft.info/
 

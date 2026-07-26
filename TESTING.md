@@ -1,12 +1,14 @@
 # Testing Weft
 
-> **Canonical status.** *Governs:* test-layer taxonomy (1 through 5), the four v0 release gates and v2 gates 5/6, coverage floors on wire-critical modules, review authority for weakening tests. *Defers to:* `weft-design.md` (what invariants exist to test), `weft-build-list.md` (per-task acceptance criteria), `SECURITY.md` (which threats a gate protects against). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). No one may weaken or remove a release gate; changes here require Fable review.
+> **Canonical status.** *Governs:* test-layer taxonomy (1 through 5), the **six** release gates (four v0 + two v2, with Gate 3 extended to groups), coverage floors on wire-critical modules, review authority for weakening tests. *Defers to:* `weft-design.md` (what invariants exist to test), `weft-build-list.md` (per-task acceptance criteria), `SECURITY.md` (which threats a gate protects against). *Last reviewed:* 2026-07-26 (post-M13; v2 protocol layer complete). No one may weaken or remove a release gate; changes here require Fable review.
 
-How to prove the code does what the design and UX spec say it does. Every task in `weft-build-list.md` has an acceptance test; this document explains the layers those tests live in, the tools that run them, the four **release-gate** tests that encode the design's soul, and the manual protocols that require a human. It is prescriptive: the shape of testing is fixed early because retrofitting test discipline into a running protocol is how subtle privacy bugs get shipped.
+How to prove the code does what the design and UX spec say it does. Every task in `weft-build-list.md` has an acceptance test; this document explains the layers those tests live in, the tools that run them, the six **release-gate** tests that encode the design's soul, and the manual protocols that require a human. It is prescriptive: the shape of testing is fixed early because retrofitting test discipline into a running protocol is how subtle privacy bugs get shipped.
 
 Testing is co-owned with **Fable**, who reviews test coverage and can require additional tests before a phase is released.
 
 > **Revision note (2026-07-13).** Updated for DD §35. Material changes: **four** release gates, not two (Gate 3 — no plaintext vouches on relays, F1; Gate 4 — route paths cannot be correlated, F2); Layer 3.5 for component tests of safety-critical UI invariants (M9); copy lint operates on source, not the built bundle (H5); Layer 1 gains store-migration tests (L14); Layer 4 gains explicit accessibility items (L15); project-review authority is distinguished from protocol governance (L13).
+>
+> **Revision note (2026-07-26).** M13 shipped: **six** release gates, not four (Gate 3 extended to groups per M13-T2; Gate 5 — plurality is bounded, and Gate 6 — accountability is scoped, per M13-T1). Layers 1–4 unchanged. Gate coverage across the workspace: 283 tests (214 core + 1 porch + 5 pwa + 63 sim).
 
 ---
 
@@ -60,7 +62,22 @@ Four tests encode invariants the design cannot be shipped without. They live und
 **Assertion:** In a sim scenario, two non-adjacent nodes on a query's path record every wrapper field they observe for the query and its reply. The intersection of identifying values across the two recorders is **empty**: per-edge route tokens (`rt`) differ at every hop; no queryId ever appears in wrapper plaintext; no ephemeral pubkey re-uses across hops.
 **Why:** a plaintext queryId visible at every hop lets colluding non-adjacent nodes trace the full path, partially defeating origin ambiguity (DD §35 F2). Adversary A2′ in `SECURITY.md`. Route-token blinding is the fix; this gate proves it.
 
-**Rule:** **any** of the four gates failing blocks the release, regardless of how much else is green. (The v2 group/persona layers add **gates 5 and 6** — *plurality is bounded* and *accountability is scoped* — specified in build-list M13-T1; they become unwaivable for any release containing those layers. They do not exist in v0 because the layers don't.) Fable reviews any change to `core/routing`, `core/handshake`, or `core/invite` specifically to confirm the gates remain intact — and reviews any modification to these test files as a security-relevant change (`SECURITY.md` § *Review*).
+### Gate 5 — Plurality is bounded *(M13-T1, invariant 5a)*
+**Location:** `core/persona/__tests__/gate5.plurality.bounded.test.ts`.
+**Assertion:** The (k+1)th persona from one root in one (issuer, epoch) forces a nullifier collision that anyone can detect. Two colliding presentations with distinct verifier challenges recover the root secret via M9-T2's double-spend trapdoor. Per-epoch quota resets between epochs; per-issuer quota is scoped per cell (different cells → independent nullifier spaces); cross-user independence holds (one user cheating doesn't expose another).
+**Why:** invariant 5 promises "plurality is bounded, accountability is scoped." Without Gate 5 a single root could spin up thousands of personas — the antithesis of bounded plurality. Enforcement is *self-incrimination* via the Brands double-spending trapdoor: cheating produces public evidence anyone can compute.
+
+### Gate 6 — Accountability is scoped *(M13-T1, invariant 5b)*
+**Location:** `core/group/__tests__/gate6.accountability.scoped.test.ts`.
+**Assertion:** An ejected scope_nym cannot re-enter its scope, even with a fresh presentation of the same credential (M9-T3 determinism + M10-T1 roster's "previously ejected" refusal). Accountability is per-scope (ejection from cell A does not block entry to cell B) and per-member (ejecting member A does not affect member B). The roster carries scope_nyms only — never Nostr identities or credential bytes.
+**Why:** the load-bearing property that lets anonymous membership + accountable governance coexist. Without Gate 6 a group could either (a) accept unlimited rejoins from banned members, or (b) require identifying members to enforce bans. The scope_nym determinism plus the roster's per-scope permanence gives both.
+
+### Gate 3 (extended to groups) *(M13-T2)*
+**Additional location:** `packages/sim/src/__tests__/gate3.social.graph.groups.test.ts`.
+**Additional assertion:** After a full group lifecycle (create → join×5 → message → eject → rotate), scanning MockRelay yields no plaintext member identity pubkey anywhere, and no relay-visible event carries a pair of scope_nyms (a pair would be a plaintext linkage between members). 4911 declarations encrypt authorized-scope_nym lists; 4921 rotation events carry only p_sign pubkeys (public within the group) and NIP-44 seals, never scope_nyms.
+**Why:** the v0 Gate 3 protected the vouch graph; the group layer added new opportunities to leak edges (rosters, join events, ejections, rotations). This extension proves the invariant holds through M10's full wire surface.
+
+**Rule:** **any** of the six gates failing blocks the release, regardless of how much else is green. Fable reviews any change to `core/{routing, handshake, invite, cred, group, persona}` specifically to confirm the gates remain intact — and reviews any modification to these test files as a security-relevant change (`SECURITY.md` § *Review*).
 
 ---
 
@@ -141,7 +158,7 @@ Manual tests: follow `docs/manual-tests.md`.
 
 - **Fable** may block a phase from release if test coverage on wire-critical modules drops below the §14 floors, if a release gate is weakened or removed, or if a manual test protocol is skipped without justification.
 - The human designer may waive manual-test items for a phase, but the waiver is recorded in the corresponding CHANGELOG entry with the reason.
-- Neither Fable nor Claude Code may waive the **four** release gates. Ever.
+- Neither Fable nor Claude Code may waive the **six** release gates. Ever.
 
 **Scope of this authority** (L13). The review powers described here are *project rules* for this pre-v1 repository — they govern what gets merged and what a phase release requires. They are **not** the protocol governance described in DD §26 (rough consensus over RFCs, the five invariants as constitution, adoption as ratification, forking as the check). When outside contributors and other client implementations arrive, the DD §26 process is the authority over the *protocol*, and Fable / Claude / any single reviewer holds no more standing there than any other participant. The distinction matters: this document can raise the bar for what this repo ships; only DD §26 can raise the bar for what Weft *is*.
 
@@ -149,6 +166,8 @@ Manual tests: follow `docs/manual-tests.md`.
 
 ## What is deliberately not tested
 
-Consistent with build-list §13 (deferred features), v0 has no tests for: personas, group channels, MLS, beacon publishing, push notifications, LSH private matching, anonymous credentials, media/blobs, standing-ask rhythm, escrow. Their absence is not a testing gap; they are not built.
+Consistent with build-list §13 (deferred features): beacon publishing, push notifications, LSH private matching, media/blobs, standing-ask rhythm, escrow. Their absence is not a testing gap; they are not built.
 
-The **group and persona layers are now fully specified** (DD §36) with their own build appendix (build-list §16, M9–M13) and their own acceptance tests defined there — including v2 release gates 5 and 6. Those tests arrive with the code when the layers are built; until then this document's v0 scope stands, and the v2 test sections will be expanded here at that time.
+**Now tested (M9–M13 shipped, 2026-07-22 through 2026-07-26).** Personas, group channels (Ostrom-scale), anonymous credentials (BBS+ with per-verifier pseudonyms), scoped nullifiers, rendezvous, and both v2 release gates are live and green. Test coverage is documented per-milestone in `CHANGELOG.md` and per-file in the `__tests__` folders under `packages/core/{cred,group,persona}` and `packages/sim/src/__tests__`.
+
+**Still deferred with clear boundaries:** MLS large-group transition (M10.5, blocks nothing at Ostrom scale) and PWA persona UX (M11.5, protocol layer complete). See `weft-build-list.md` §16 for the standalone milestones.

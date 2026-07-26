@@ -1,6 +1,6 @@
 # Security Policy
 
-> **Canonical status.** *Governs:* threat model (adversaries A1–A9, A2′), invariant enforcement in code, the four v0 release gates (names — implementations live in `TESTING.md`), cryptographic policy, key hierarchy, disclosure process, known-gap catalog. *Defers to:* `weft-design.md` (crypto constructions and §35/§36 detail), `TESTING.md` (gate implementations), `OBSERVABILITY.md` (what NOT to log for privacy). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). Every change to `core/{keys,codec,wrap,invite,routing,handshake,store}` is a security-relevant change requiring Fable review.
+> **Canonical status.** *Governs:* threat model (adversaries A1–A9, A2′), invariant enforcement in code, the **six** release gates (names — implementations live in `TESTING.md`), cryptographic policy, key hierarchy, disclosure process, known-gap catalog. *Defers to:* `weft-design.md` (crypto constructions and §35/§36 detail), `TESTING.md` (gate implementations), `OBSERVABILITY.md` (what NOT to log for privacy). *Last reviewed:* 2026-07-26 (post-M13, v2 protocol layer complete; only PWA persona UX (M11.5) and MLS large-group transition (M10.5) deferred). Every change to `core/{keys,codec,wrap,invite,routing,handshake,store,cred,group,persona}` is a security-relevant change requiring Fable review.
 
 Weft's security posture is **architectural first, procedural second**: the design's five invariants (`README.md` § *The five design invariants*) are what protects users, and this document explains how they're enforced in code, how threats we know about are addressed, what threats remain, and how to report vulnerabilities. Security review is co-owned with **Fable**, who reviews any change touching cryptography, wire formats, key handling, or the routing/handshake state machines before it's merged into a release phase.
 
@@ -70,7 +70,7 @@ Full model: DD §6, DD §16, and DD §35. What follows is the version-controlled
 
 If a task appears to require a KDF, an AEAD, a curve op, or a signature scheme not covered above, **stop and ask** — do not write it, do not import a fourth crypto library without Fable's review. The build-list §2 pinning is a security control.
 
-**v2 addition (specified, not yet built):** the group and persona layers (DD §36) add exactly one primitive — **BBS+ anonymous credentials over BLS12-381** — via a single audited library (`@noble/curves` supplies BLS12-381; the BBS+ presentation layer comes from a maintained implementation or, only under Fable review with published test vectors, over noble's pairing ops). The pairing and the signature scheme are **never** hand-rolled. This is the sole sanctioned crypto addition for v2; anything beyond it re-triggers "stop and ask."
+**v2 addition (M9 shipped 2026-07-22):** the group and persona layers (DD §36) added exactly one primitive — **IETF blind-BBS + BBS-per-verifier-pseudonym** signatures over BLS12-381 — via `@digitalbazaar/bbs-signatures` (consumed through the [rlSutter/bbs-signatures](https://github.com/rlSutter/bbs-signatures) fork with pseudonym subpath exports; upstream PR [#22](https://github.com/digitalbazaar/bbs-signatures/pull/22) pending). Pairing math and signature scheme are from the library, not hand-rolled. Wrapper isolated to `core/src/cred/bbs.ts`; the rest of the workspace sees typed re-exports. This remains the sole sanctioned crypto addition for v2; anything beyond it re-triggers "stop and ask."
 
 **Key hierarchy (DD §9.1):**
 
@@ -113,21 +113,27 @@ Each of the five design invariants is enforced by specific code paths **and** sp
 - Tested by **Gates 1, 2, and 4**.
 
 ### Invariant 5 — Plurality bounded, accountability scoped
-- **Not enforceable in v0** (personas & anonymous credentials are v2). v0's honest position: plural personas *do not exist yet*, and creating a "second identity" in v0 is simply a fresh identity with all of a fresh identity's inertness (zero vouches, no reach).
-- **Enforceable in v2, now specified** (DD §36, build-list §16). The BBS+ credential engine bounds plurality via k-show nullifiers (a root backing more than k personas per epoch self-incriminates) and scopes accountability via scoped pseudonyms (an ejected `scope_nym` cannot re-enter its scope). When the persona/group layers ship, this invariant is enforced by tests M13-T1 (v2 release gates 5 and 6), not merely promised.
+- **Enforced (M13-T1, 2026-07-26).** Both halves of invariant 5 are now live release gates:
+  - **Plurality bounded** — enforced by **Gate 5** at `core/persona/__tests__/gate5.plurality.bounded.test.ts`. The (k+1)th persona from one root in one (issuer, epoch) forces a nullifier collision that anyone can detect and that recovers the root secret via M9-T2's double-spend trapdoor. Cheating is self-incriminating; honest use within k is fully unlinkable. Backed by M9-T2 at the engine and M11-T1's `personaShareTicket` at the layer.
+  - **Accountability scoped** — enforced by **Gate 6** at `core/group/__tests__/gate6.accountability.scoped.test.ts`. An ejected scope_nym cannot re-enter its scope, even with a fresh presentation of the same credential (M9-T3 determinism + roster's "previously ejected" refusal in M10-T1). Ejection from cell A does not block entry to cell B (per-scope), and ejecting member A does not affect member B (per-member).
+- **Historical note.** v0 could only promise these properties (personas + anonymous credentials didn't exist yet); with M9 + M10 + M11 shipped, they are enforceable in code. Weakening Gate 5 or Gate 6 requires Fable review — same rule as Gates 1–4.
 
 ---
 
-## The four release gates
+## The six release gates
 
 These encode invariants the design cannot ship without. Full specifications live in `TESTING.md`; they are named here because **no one may weaken or remove them — not Fable, not Claude Code, not the human designer.**
+
+Gates 1–4 have been unwaivable since v0; Gates 5–6 joined at M13-T1 (2026-07-26) and are unwaivable for any release containing the persona/group layers.
 
 | Gate | Asserts | Protects |
 |---|---|---|
 | **1 — Byte-identical authored/forwarded query** | An authored 4910 and a forwarded 4910 are byte-identical in wire shape | Origin ambiguity (invariant 4, DD §17.2) |
 | **2 — Zero events on decline** | A declining node emits zero events of any kind, in any direction | Rejection cannot become a harassment hook (DD §5 stage 2) |
-| **3 — No plaintext vouch reaches a relay** *(new, F1)* | After a full invite→redeem→confirm cycle, MockRelay storage holds zero plaintext 4902s; only hash-referencing voids may appear | The social graph (asset #1) |
-| **4 — Reply paths cannot be correlated** *(new, F2)* | Two non-adjacent nodes on a path share no identifying wrapper value for the same query/reply | Origin ambiguity against colluding hops (A2′) |
+| **3 — No plaintext social graph on relays** *(F1; extended to groups M13-T2)* | After an invite→redeem→confirm cycle: zero plaintext 4902s. After a full group lifecycle (create → join×5 → message → eject → rotate): zero plaintext member pubkeys on relay events, no relay-visible event carries a pair of member scope_nyms | The social graph (asset #1) — v0 vouches AND v2 group membership |
+| **4 — Reply paths cannot be correlated** *(F2)* | Two non-adjacent nodes on a path share no identifying wrapper value for the same query/reply | Origin ambiguity against colluding hops (A2′) |
+| **5 — Plurality is bounded** *(M13-T1, invariant 5a)* | The (k+1)th persona from one root in one (issuer, epoch) forces a nullifier collision; two colliding presentations with distinct challenges recover the root via M9-T2's trapdoor. Per-epoch and per-issuer scoped. | k-show discipline — cheating is self-incriminating |
+| **6 — Accountability is scoped** *(M13-T1, invariant 5b)* | An ejected scope_nym cannot re-enter its scope even with a fresh presentation of the same credential; ejection from cell A does not block entry to cell B; ejecting member A does not affect member B. Roster carries only scope_nyms, never identities. | Governance sticks without deanonymization |
 
 ---
 
@@ -138,10 +144,12 @@ These encode invariants the design cannot ship without. Full specifications live
 - Vouch attestations (4902) are delivered **wrapped to their subject**, cached locally, and presented as self-contained, offline-verifiable credentials inside match tokens and reveal payloads (DD §9.3, §33.3).
 - Verification = signature check + a lookup for a 4903 **void** of the attestation's hash. A void reveals that an issuer voided *something* — never the subject, never the edge.
 
-### Group & persona confidentiality *(v2 — DD §36)*
-- Group membership is **pseudonymous by default**: members are present under a `scope_nym`, governance operates on nyms, and no plaintext member-to-group or member-to-member link is ever public (extends Gate 3 to the group layer — build-list M13-T2).
-- Personas carry **anonymous credentials**, never plaintext vouches; a persona never rides the root's contact graph; behavioral linkage (stylometry, timing, same-IP) remains the residual DD §36.3 states honestly at persona creation.
-- Credential requests/issuance (4930/4931), join requests (4932), and membership grants (4933) carry commitments, presentations, or wrapped keys — never a plaintext pubkey pair.
+### Group & persona confidentiality *(v2 — DD §36 — shipped M9/M10/M11/M12)*
+- Group membership is **pseudonymous by default**: members are present under a `scope_nym`, governance operates on nyms, and no plaintext member-to-group or member-to-member link is ever public. **Gate 3 extended to groups (M13-T2)** — a full lifecycle (create → join×5 → message → eject → rotate) leaves no plaintext member pubkey on MockRelay and no relay-visible event containing a pair of scope_nyms.
+- Personas carry **anonymous credentials**, never plaintext vouches; a persona never rides the root's contact graph. Persona identity keys are hardened-HKDF-derived from the root (M11-T1), unlinkable at the key level; k-show binding via M11-T1's `personaShareTicket` enforces "no root exceeds k active personas per epoch per issuer" — **Gate 5** verifies. Behavioral linkage (stylometry, timing, same-IP) remains the residual DD §36.3 states honestly at persona creation.
+- Credential requests/issuance (4930/4931), join requests (4932), and membership grants (4933) carry commitments, presentations, or wrapped keys — never a plaintext pubkey pair. Blind issuance at join (M10-T2, DD §36.2 amendment) means the greeter never sees the joiner's identity pubkey: 4932 signed by ephemeral `p_join_eph`, 4933 wrapped to `p_join_eph`, 4922 signed by cell-scoped `k_sign`.
+- Rendezvous (M12-T1) is a group whose auto-admit gate collapses the greeter step to pure verification; cross-rendezvous unlinkability holds by construction (M9-T3 determinism + distinct cell ids).
+- **Ejection sticks by construction (Gate 6).** The deterministic scope_nym derivation means a rejoin attempt from the same credential produces the same scope_nym, which the roster refuses on "previously ejected" grounds — accountability without deanonymization.
 
 ### Route-token blinding *(new — DD §35 F2)*
 - Every 4910 carries a fresh random 16-byte `rt` assigned by the node that handed it to you. Forwarders mint a new token per downstream copy and keep a private swap table (`myToken → upstreamToken, neighbor`).
@@ -239,9 +247,9 @@ Each is a real weakness with a design response scheduled or a tradeoff stated. F
 | Store schema migrations (F12) | Open | `schema_version` + forward-only migrations + a CI migration test (M3). |
 | No forward secrecy on pairwise channels (NIP-44, not double ratchet) | Deferred to v2 | Ship before any at-risk community joins. |
 | No cover traffic / padding | Deferred to v2 | Partially prepaid by sentinels (DD §10.3). |
-| No vouch revocation propagation (v0 = expiry only) | Deferred to v2 | Ship on first key-compromise incident or before cell #3, whichever comes first. |
+| No vouch revocation propagation (v0 = expiry only) | Partial — v2 credential revocation shipped (M9-T4) via 4903 voids by handle; vouch (4902) revocation still relies on expiry | Handle-based revocation for anonymous credentials is enforceable now. Vouch-side propagation stays deferred pending a v3 accumulator refinement. |
 | No disjoint-path redundant routing | Deferred to v2 | Ship when single-path drop rates become visible. |
-| MLS group keying (groups deferred entirely in v0) | Deferred to v2+ | Naive rotation ≤150 members; MLS beyond. |
+| MLS group keying (large groups >150 members) | Shipped ≤150 (M10-T3 O(n) rotation); MLS transition deferred to M10.5 | Ostrom-scale groups fully supported today. MLS integration is a standalone milestone (`weft-build-list.md` §16 M10.5). |
 | PWA storage eviction on iOS (DD §32.4) | Mitigated | Home-screen install as onboarding step zero; earlier, firmer backup nudge. |
 | PWA update trust is origin-based (DD §32.5) | Documented, mitigated | Signed release manifest; sideload path published. |
 | Push depends on APNs/FCM (DD §16.5) | Mitigated (v2 feature) | Content-free pokes only; polling floor; UnifiedPush where available. |

@@ -16,6 +16,67 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added — 2026-07-26 — Gates 5 and 6 live; Gate 3 extended to groups (M13) — reviewed by: pending
+
+Invariant 5 ("plurality bounded, accountability scoped") moves from
+"promised" to "enforced" — both halves are now release-gate-class tests
+under `core/{persona,group}/__tests__` following the same file-naming
+convention as v0 Gates 1–4. Gate 3 (no plaintext social graph) is
+extended to the group layer.
+
+- **M13-T1** Gates 5 + 6 live.
+  * `core/persona/__tests__/gate5.plurality.bounded.test.ts` — the
+    (k+1)th persona from one root in one (issuer, epoch) forces
+    nullifier collision; two colliding presentations recover the root
+    via M9-T2's trapdoor. Per-epoch and per-issuer scoping asserted.
+  * `core/group/__tests__/gate6.accountability.scoped.test.ts` — an
+    ejected scope_nym cannot re-enter its scope even with a fresh
+    presentation of the same credential (M9-T3 determinism +
+    M10-T1 roster's "previously ejected" refusal). Per-scope and
+    per-member scoping asserted; roster carries scope_nyms only,
+    never Nostr identities.
+
+- **M13-T2** Gate 3 extended to groups.
+  * `packages/sim/src/__tests__/gate3.social.graph.groups.test.ts` —
+    full lifecycle (create → join×5 → message → eject → rotate) leaves
+    no plaintext member identity pubkey on MockRelay and no relay-
+    visible event with a pair of scope_nyms. 4911 declarations encrypt
+    the authorized-scope_nym list; 4921 rotations carry only p_sign
+    pubkeys and NIP-44 seals.
+
+- **Docs updated same commit** to reflect v2 protocol layer complete:
+  * `SECURITY.md` — invariant-5 row goes from "not enforceable in v0"
+    to "enforced (M13-T1)" with citation. Release gate table expanded
+    from 4 to 6 rows. "v2 addition specified" → "v2 addition shipped."
+    Known-gap table updated: MLS-transition deferred to M10.5;
+    revocation partial (M9-T4 credential handles shipped, vouch-side
+    still deferred).
+  * `TESTING.md` — "four release gates" → "six release gates"
+    throughout. New sections for Gate 5, Gate 6, and the Gate 3 groups
+    extension. "What is deliberately not tested" reshaped: personas/
+    groups/anonymous credentials/scoped nullifiers/rendezvous now
+    TESTED, not deferred.
+  * `STRUCTURE.md` — v2 folders `cred/`, `group/`, `persona/`
+    described with per-file contents (populated, no longer `.gitkeep`).
+  * `README.md` — status line adds "v2 protocol layer complete in
+    core/ (2026-07-26, unreleased)"; test count 283.
+  * `GROUPS.md` — "code-absent in v0.1.0-alpha" replaced with a
+    protocol-complete status recap and per-module summary. "Two paths
+    for shipping groups" collapsed to a historical footnote (Path A,
+    full v2, is what shipped).
+  * `OBSERVABILITY.md` — v2 layers add zero new emitted counters
+    (all group/persona ops respect the no-telemetry discipline).
+  * `weft-build-list.md` — §16 header marked SHIPPED with dates;
+    canonical-status footer updated.
+
+Test count workspace-wide: **283 total** (was 272). Core: 214 (was 206
+— +8 Gate 5/6 tests). Sim: 63 (was 60 — +3 Gate 3 groups extension).
+
+**With M13 shipped, the v2 protocol-layer definition-of-done from
+build-list §16 is met** except for M10.5 (MLS large-group transition)
+and M11.5 (PWA persona UX), both of which are standalone milestones
+that don't block Ostrom-scale groups or the current protocol properties.
+
 ### Added — 2026-07-25 — rendezvous (M12-T1) — reviewed by: pending
 
 Vouched-anonymous rendezvous is live in `core/src/group/rendezvous.ts`.

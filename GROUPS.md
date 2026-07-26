@@ -1,6 +1,6 @@
 # Weft — Groups
 
-> **Canonical status.** *Governs:* the steward-facing synthesis of Weft's group/cell design and operations — what a cell is, how it sets up, and the pre-flight/launch/weekly cadence. Sits between the DD (specification) and the eventual `docs/groups-operations.md` (playbook). *Defers to:* `weft-design.md` §36 on protocol wire formats, `SECURITY.md` on threat model, `TESTING.md` on gates, `weft-build-list.md` §16 (M9–M13) on build order. *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build); revised after Fable's critique cycle to correct scope_nym derivation and the small-group key scheme. Where this doc and the DD disagree, the DD wins.
+> **Canonical status.** *Governs:* the steward-facing synthesis of Weft's group/cell design and operations — what a cell is, how it sets up, and the pre-flight/launch/weekly cadence. Sits between the DD (specification) and the eventual `docs/groups-operations.md` (playbook). *Defers to:* `weft-design.md` §36 on protocol wire formats, `SECURITY.md` on threat model, `TESTING.md` on gates, `weft-build-list.md` §16 (M9–M13) on build order. *Last reviewed:* 2026-07-26 (post-M13; group layer live in `core/src/group/`, personas + rendezvous shipped, only M10.5 MLS transition and M11.5 PWA persona UX deferred). Where this doc and the DD disagree, the DD wins.
 
 This document synthesizes how communities ("cells") set themselves up in Weft. It draws from:
 
@@ -17,29 +17,36 @@ Where this doc and the design doc disagree, the design doc wins.
 
 ## Status
 
-**Groups are v2 spec-complete but code-absent in v0.1.0-alpha.** They're fully specified in DD §36 — every kind number, every state transition, every ejection semantics — so nothing has to be renumbered or rewritten when we build them. But no code exists yet. What today's alpha gives you is a **1:1 vouch graph**, not first-class groups. See "What today's alpha gives you" below.
+**Groups are protocol-complete in `core/`** (2026-07-26). M9 (BBS+ credential engine) + M10 T1–T5 (charter, roster, blind-issuance join, messaging + rotation, ejection, group-as-respondent) + M11 (personas) + M12 (rendezvous) all shipped and sim-verified. Gates 5 (plurality bounded) and 6 (accountability scoped) went live at M13-T1 and are unwaivable. Gate 3 (no plaintext social graph) is extended to groups per M13-T2.
 
-> **Revision (Fable review):** this doc has been corrected on the scope_nym derivation (it's a credential-bound ZK nullifier, not a raw `PRF(root_secret, cell_id)`), the small-group key scheme (shared key with per-member wrapping, not "sender keys"), and the 4911/roster details; and a "Sharp edges" section now captures the greeter bottleneck, the per-cell Sybil surface, the no-appeal property, the cold-join path, and the MLS threshold. See `weft-groups-critique.md` for the full critique and two proposed DD §36 amendments.
+**Not yet wired into the alpha PWA.** The v2 code lives in `packages/core/src/{cred,group,persona}` with 283 tests green across the workspace, but the alpha PWA (v0.1.0-alpha, released 2026-07-17) still exposes only the v0 1:1 vouch graph. Wiring group UX into the PWA is a separate milestone track (M11.5 covers persona UX; group UX will follow the same pattern).
 
-Groups depend on the BBS+ credential engine (M9). Without that machinery, groups either (a) require members to reveal their real identity to be counted, defeating pseudonymity, or (b) publish membership as plaintext, which puts the social graph on the wire and breaks Gate 3 (TESTING.md). So the honest sequence is: credential engine first, then groups.
+**Two milestones deferred with clean boundaries:**
+- **M10.5** — MLS transition for large groups (>150 members). Ostrom-scale (≤150) is fully supported today via M10-T3's shared-group-key + O(n) rotation.
+- **M11.5** — PWA persona UX: settings creation, distinct shell tint per persona, verbatim §18.5 warning, overlap detector, separate unlock.
+
+> **Historical revision note.** An earlier draft of this document went through a Fable critique cycle that corrected the scope_nym derivation (it is a credential-bound ZK nullifier, not a raw `PRF(root_secret, cell_id)`), the small-group key scheme (shared key with per-member wrapping, not "sender keys"), and the 4911/roster details. Both corrections landed in `weft-design.md` §36.1/§36.2 as normative amendments on 2026-07-19 and are now enforced in the shipped `core/src/{cred,group}/` code.
 
 ---
 
-## What today's alpha gives you
+## What ships today (post-M13, protocol layer)
 
-There is no `Group` object, no charter, no shared membership list, no group messaging, no "you're in the Koji Fermentation Circle now" pill. What exists is:
+The `core/` engine can now do all of the following. The alpha PWA doesn't yet expose them; the porch node can drive them via sim scripts.
 
-- **A 1:1 vouch graph.** Alice invites Bob, Bob invites Carol, and now the three of them can reach each other by hopping (Alice → Bob → Carol) when they ask questions. The "group" is emergent — visible only in the topology, not named.
-- **De-facto communities.** If you want to run a community today, one person (call them the steward) invites everyone individually. Everyone else has that person plus their own invitees as contacts. Asks travel across the friend-of-friend graph.
+- **Charter with m-of-n governance.** Cell id = genesis charter event id. Amendments chain via `prev`; each amendment carries m-of-n steward signatures over the payload's canonical hash. A single-steward amendment is rejected. (`core/src/group/charter.ts`)
+- **Encrypted roster.** Active + ejected sets, both keyed by scope_nym. `addMember` refuses both already-active AND previously-ejected — the ejection-sticks property is enforced by the data structure. (`core/src/group/roster.ts`)
+- **Blind-issuance join.** 4932 signed by ephemeral `p_join_eph`; 4933 wrapped to `p_join_eph`; 4922 consent receipt signed by cell-scoped `k_sign` derived from `nym_secret + scope_id`. The greeter never sees the joiner's identity pubkey — the sim test asserts the greeter's full view contains no bytes of it. (`core/src/group/join.ts`, `k-sign.ts`)
+- **Group messaging + O(n) rotation.** 4920 messages under a shared symmetric group key with XChaCha20-Poly1305 AEAD, `h`-tagged (channel = hash of cell id). 4921 rotation packages one NIP-44 seal per remaining member's `p_sign`. Ejected members' `p_sign` is omitted, locking them out post-rotation. (`core/src/group/messaging.ts`)
+- **Ejection = key rotation.** 4904 attestation carries `EjectionVerdict` enum (below-threshold, foreign-signer, duplicate-signer, wrong-cell, bad-signature) so callers can log without exposing signers. (`core/src/group/ejection.ts`)
+- **Group-as-respondent (F9 closed).** 4911 declarations encrypt authorized-scope_nym lists under the group key. grp-tagged 4912 replies carry scope-bound credential presentations that verifiers check against the group's issuer pubkey. (`core/src/group/respondent.ts`)
+- **Rendezvous.** Charter marker in `house_rules[0]` distinguishes a rendezvous from a regular cell; `autoAdmit` collapses the greeter to a pure cryptographic gate. Cross-rendezvous unlinkability holds by construction. (`core/src/group/rendezvous.ts`)
+- **Personas.** Hardened HKDF derivation from root; keys unlinkable at the network layer. `personaShareTicket` binds k-show via M9-T2 nullifiers keyed on the root — the (k+1)th persona in one (issuer, epoch) self-incriminates. (`core/src/persona/`)
 
-**What you can do today to approximate a group:**
+---
 
-1. One person acts as steward. They invite each member individually.
-2. Everyone declares related topics as their "What you're into" interests (e.g., "koji fermentation", "miso", "aspergillus").
-3. When one member asks a matching question, the rest of the network's matchers fire.
-4. Pairwise chats happen after reveals.
+## Still true: the v0 alpha uses a 1:1 vouch graph
 
-No group messaging, no shared roster, no charter, no ejection. But the discovery loop works — everyone who declared matching interests reachable through the vouch graph can find each other. It looks like a series of 1:1 conversations rather than a room.
+The **shipped alpha PWA** (v0.1.0-alpha) still has no `Group` object surfaced. What its users have is the v0 friend-of-friend graph: Alice invites Bob, Bob invites Carol, questions hop through the topology. It looks like a series of 1:1 conversations rather than a room. That's fine as a first-cell dynamic, and the core-only v2 landing means we can wire it into the UI without another spec pass.
 
 ---
 
@@ -189,49 +196,27 @@ DD §31 walks through a concrete month day-by-day for a hypothetical "Cascade Fe
 
 ---
 
-## Why groups aren't in the alpha yet
+## The v2 build (shipped through 2026-07-26)
 
-They need the **BBS+ credential engine** to work correctly — that's the whole point of scope_nyms and k-show bounds. Building groups without that machinery would either:
+The v2 layers were built in the order the design required: credential engine first (nothing else works without it), then everything that consumes it. All landed and green.
 
-- Require members to reveal their real identity to be counted, defeating the pseudonymity property that makes ejection stick against unknown-identity members, **or**
-- Publish membership as plaintext, putting the social graph on the wire and breaking **Gate 3** ("no plaintext object linking two member pubkeys may ever appear on a relay", TESTING.md and CHANGELOG's disposition of DD §35 F1).
+- **M9** Credential engine (`core/src/cred/`) — BBS+ over BLS12-381 with per-verifier pseudonyms, k-show nullifiers, credential-bound scope_nyms, 4930/4931 issuance flow, 4903-void revocation. Dependency: [rlSutter/bbs-signatures](https://github.com/rlSutter/bbs-signatures) fork adding pseudonym subpath exports; upstream PR [digitalbazaar/bbs-signatures#22](https://github.com/digitalbazaar/bbs-signatures/pull/22) pending.
+- **M10 T1–T5** Group layer (`core/src/group/`) — charter with m-of-n amendments, encrypted roster, blind-issuance join, group messaging + O(n) rotation, ejection = key rotation, group-as-respondent (closes F9).
+- **M11 T1–T2** Persona layer (`core/src/persona/`) — hardened HKDF derivation, PersonaDirectory backup, k-show binding via `personaShareTicket`.
+- **M12-T1** Rendezvous (`core/src/group/rendezvous.ts`) — reuses M9/M10; charter marker + `autoAdmit` gate.
+- **M13** Invariant re-audit — Gate 5 (plurality bounded) + Gate 6 (accountability scoped) live and unwaivable; Gate 3 (no plaintext social graph) extended to groups.
 
-Build-list §16 has the v2 milestones ordered as:
-
-- **M9** Credential engine (`core/src/cred`) — the gate; BBS+ over BLS12-381, k-show nullifiers, scoped pseudonyms, issuance flow
-- **M10** Group layer (`core/src/group`) — charter/membership/messaging/ejection/MLS-transition
-- **M11** Persona layer (`core/src/persona`) — hardened derivation, anonymous standing, lifecycle
-- **M12** Rendezvous — vouched-anonymous entry (`core/src/group` reuse)
-- **M13** Invariant re-audit — the two v2 release gates (Gate 5: plurality bounded; Gate 6: accountability scoped)
-
-None are inert — the specs are complete so nothing needs to be renumbered. But no code exists yet. Rough estimate: ~15–25 days of focused work per §16, with one sanctioned new dependency (BBS+/BLS12-381).
+**Deferred with clean boundaries** (see `weft-build-list.md` §16):
+- **M10.5** — MLS transition for large groups >150 members. Doesn't block Ostrom-scale.
+- **M11.5** — PWA persona UX (settings creation, shell tint, overlap detector, separate unlock).
 
 ---
 
-## Two paths for shipping groups
+## Historical: the two paths we considered
 
-### A. Full v2 per DD §36
+At M9 start we debated shipping a minimum-viable-groups (MVG) build that skipped the credential machinery — real-pubkey membership, group-key-encrypted rosters, real-pubkey ejection. It would have shipped in ~5–7 days instead of the several weeks the full v2 took. We chose against it: MVG loses pseudonymity within the group (fine for a fermentation club, not fine for a support group), breaks rendezvous (which needs the credential machinery too), postpones personas indefinitely, and would need a genuine DD §36 amendment recording the reduction.
 
-The design's intent. Ships all five milestones (M9–M13). Preserves every privacy property: pseudonymous membership, anonymous credentials, k-show-bounded plurality, scope-exclusive pseudonyms that make ejection stick without identifying who was ejected. Reuses the same credential machinery for personas and anonymous rendezvous — one investment, three uses.
-
-Cost: BBS+/BLS12-381 dependency (one library, well-audited), significant crypto engineering, MLS integration for large groups, careful invariant-5 test suite (Gates 5 and 6).
-
-Timeline: ~15–25 days. See build-list §16 for per-task estimates.
-
-### B. Minimum-viable groups (a proposed departure from DD §36)
-
-Charter + membership + group messaging under a shared key, **skipping the anonymous-credential machinery**. Membership would be real-pubkey-based; the roster would be encrypted under the group key but participants would know each other's real identity. Ejection would still work via key rotation but would use real pubkeys not scope_nyms.
-
-Cost: Much smaller — maybe 5–7 days. No new dependency. But:
-
-- **Loses pseudonymity within the group.** Every member sees every other member's real pubkey. Fine for a fermentation club; not fine for a support group.
-- **Breaks the property that makes rendezvous work.** Rendezvous (DD §17.4) needs the credential machinery too.
-- **Postpones personas.** Personas share the same credential machinery.
-- **Is a genuine spec departure.** Not just "v0 tolerates a residual"; would need a DD §36 amendment recording the deliberate reduction.
-
-**When it might be right:** if we want to prove the group model works with real communities before committing to the full credential build. Test the sociology (do stewards actually work? does m-of-n governance stay usable? does federated moderation via attestation subscription mean anything to real users?) before spending three weeks on cryptography.
-
-**When it's the wrong choice:** if we plan to invite any of the audiences the credential machinery exists for (support groups, anyone under duress, anyone for whom "membership visible to other members" is itself a threat). Then B is a footgun and A is the only honest option.
+The full v2 shipped instead — protocol layer complete on 2026-07-26. The MVG path is preserved here as a footnote for any project debating a similar trade-off; the "faster to ship" version doesn't scale to the audiences the credential machinery exists for (support groups, anyone under duress, anyone for whom "membership visible to other members" is itself a threat).
 
 ---
 

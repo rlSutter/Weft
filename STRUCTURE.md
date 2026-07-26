@@ -1,6 +1,6 @@
 # Weft — Application Structure
 
-> **Canonical status.** *Governs:* package boundaries (`core/` may-not-import list), folder layout of the `weft/` scaffold, the `core/`-no-DOM-no-Node rule (DD §32.4), and dependency policy for the pinned stack. *Defers to:* `weft-build-list.md` (per-milestone task contents), `weft-design.md` (protocol design). *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). When a package boundary is challenged, this doc gets updated first; the change flows to `CHANGELOG.md`.
+> **Canonical status.** *Governs:* package boundaries (`core/` may-not-import list), folder layout of the `weft/` scaffold, the `core/`-no-DOM-no-Node rule (DD §32.4), and dependency policy for the pinned stack. *Defers to:* `weft-build-list.md` (per-milestone task contents), `weft-design.md` (protocol design). *Last reviewed:* 2026-07-26 (post-M13; v2 protocol layer complete — `cred/`, `group/`, `persona/` folders populated). When a package boundary is challenged, this doc gets updated first; the change flows to `CHANGELOG.md`.
 
 This document describes the layout of the `weft/` application scaffold. It is a map, not a build guide. Implementation follows `weft-build-list.md` milestone by milestone; design intent lives in `weft-design.md` (referenced below as **DD §n**); UI specifications live in `weft-ux-spec.md` (normative for M6 — the **BUILD** sections there are byte-for-byte binding, the way DD §30 and §33 are for wire formats).
 
@@ -39,7 +39,7 @@ Weft/                       (this folder)
     .gitignore
 
     packages/
-      core/                   pure-TS protocol engine (v0 modules populated; v2 cred/group/persona folders reserved)
+      core/                   pure-TS protocol engine (v0 modules + v2 cred/group/persona modules all populated)
       sim/                    in-memory network harness for tests
       pwa/                    Vite + React browser client (feature-complete alpha; Landing + PWA in one bundle)
       porch/                  headless Node runner
@@ -84,13 +84,18 @@ core/src/
   handshake/       5-stage consent handshake state machine (kinds 4913–4917)           [M5-T4, DD §5]
   embed/           Embedder interface + StubEmbedder (deterministic, test-only)        [M5-T1, DD §19]
   health.ts        local-only counters, never published                                [M5-T5, DD §10.1]
-  cred/            (v2) BBS+ credential engine — issue/present/verify, k-show           [M9, DD §36.1]
-  group/           (v2) charter, join, messaging, key rotation, ejection, MLS           [M10, DD §36.2]
-  persona/         (v2) hardened derivation, anonymous standing, lifecycle              [M11, DD §36.3]
+  cred/            BBS+ credential engine: cred.ts (issue/verify/present), nullifier.ts
+                   (k-show), epoch.ts, issuance.ts (4930/4931), revocation.ts,
+                   bbs.ts (typed re-exports of @digitalbazaar/bbs-signatures)  [M9, DD §36.1]
+  group/           charter.ts, roster.ts, group-crypto.ts (XChaCha20-Poly1305),
+                   join.ts (4932/4933/4922), k-sign.ts (cell-scoped signing),
+                   messaging.ts (4920/4921), ejection.ts (4904),
+                   respondent.ts (4911 + grp-tagged 4912), rendezvous.ts         [M10, M12, DD §36.2]
+  persona/         derivation.ts (hardened HKDF), share-ticket.ts (k-show binding)   [M11, DD §36.3]
   index.ts         package barrel
 ```
 
-Milestones M0–M8 shipped in v0.1.0-alpha; the v0 module folders (`keys/`, `codec/`, `kinds/`, `invite/`, `wrap/`, `store/`, `relay/`, `routing/`, `handshake/`, `embed/`, `health.ts`) are populated and passing 145 tests. The v2 folders (`cred/`, `group/`, `persona/`) are reserved and hold `.gitkeep` — they wait on M9 per build-list §16.
+Milestones M0–M8 shipped in v0.1.0-alpha (145 tests); milestones M9–M13 shipped through 2026-07-26 (bringing the total to **283 tests** across the workspace). All v0 and v2 module folders are populated. The two deferred milestones are M10.5 (MLS large-group transition, blocks nothing at Ostrom scale) and M11.5 (PWA persona UX).
 
 ---
 

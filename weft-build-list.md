@@ -1,6 +1,6 @@
 # Weft v0 — Build List for Claude Code
 
-> **Canonical status.** *Governs:* milestone scope and ordering (M0–M8 for v0; §16's M9–M13 for v2), per-task acceptance tests, the pinned dependency stack (§2), deferred-features list (§13), definition of done (§14). *Defers to:* `weft-design.md` on wire formats and kind numbers; `weft-ux-spec.md` on the UX contract for M6 and M11-T3. *Last reviewed:* 2026-07-19 (post-v0.1.0-alpha, pre-M9 groups build). M0–M8 shipped; the §16 v2 appendix becomes active for M9. When this doc and the DD conflict on scope, this doc wins; on wire bytes, the DD wins.
+> **Canonical status.** *Governs:* milestone scope and ordering (M0–M8 for v0; §16's M9–M13 for v2), per-task acceptance tests, the pinned dependency stack (§2), deferred-features list (§13), definition of done (§14). *Defers to:* `weft-design.md` on wire formats and kind numbers; `weft-ux-spec.md` on the UX contract for M6 and M11.5. *Last reviewed:* 2026-07-26 (post-M13; v2 protocol layer complete; M10.5 MLS transition and M11.5 PWA persona UX remain as standalone milestones). When this doc and the DD conflict on scope, this doc wins; on wire bytes, the DD wins.
 
 This is an execution plan, not a design document. The design lives in `weft-design.md` (referenced below as **DD §n**). When this file and your own judgment disagree, follow this file. When this file is silent, follow the cited DD section. When both are silent, stop and ask the human.
 
@@ -203,11 +203,17 @@ Voice/STT · travel modes (deniable/anonymous), LSH buckets, private matching (D
 
 ---
 
-## 16. V2 milestones — the group and persona layers (do NOT start until v0 ships)
+## 16. V2 milestones — the group and persona layers — **SHIPPED 2026-07-22 through 2026-07-26**
 
-This appendix specifies the v2 build the way §§4–12 specify v0: ordered milestones, small tasks, acceptance commands. It is inert during v0 — §13's deferral stands, and no v2 task may be started until v0's definition of done (§14) is met and a v0 has actually run on public relays. The full protocol spec these implement is **DD §36**; the shared credential engine (§36.1) is the gate everything else depends on. Same ground rules (§0), same stack (§2) plus one audited addition (BBS+/BLS12-381).
+This appendix specifies the v2 build the way §§4–12 specify v0: ordered milestones, small tasks, acceptance commands. **Original planning note** (kept for context): "It is inert during v0 — §13's deferral stands, and no v2 task may be started until v0's definition of done (§14) is met and a v0 has actually run on public relays." That gate was met at v0.1.0-alpha (2026-07-17). M9–M13 shipped between 2026-07-22 and 2026-07-26, delivering 283 workspace-total tests (up from 145 at v0-alpha).
 
-**One new dependency, and only one.** The credential engine needs BBS+ over BLS12-381. Use a single audited library (`@noble/curves` provides BLS12-381 primitives; pair with a maintained BBS+ implementation, or implement the BBS+ presentation layer over noble's pairing ops **only** with Fable review and published test vectors — never hand-roll the pairing or the signature). No second crypto library beyond this. If a task seems to need more, stop and ask.
+The full protocol spec these implement is **DD §36**; the shared credential engine (§36.1) was the gate everything else depended on. Same ground rules (§0), same stack (§2) plus one audited addition (BBS+/BLS12-381 via `@digitalbazaar/bbs-signatures`).
+
+**One new dependency, and only one — landed.** The credential engine uses `@digitalbazaar/bbs-signatures` (BBS + blind + pseudonym IETF drafts) consumed via a fork ([rlSutter/bbs-signatures](https://github.com/rlSutter/bbs-signatures)) with pseudonym subpath exports; upstream PR pending. Wrapper is isolated to `core/src/cred/bbs.ts`. `@noble/curves` provides the BLS12-381 primitives underneath. No second crypto library beyond this.
+
+**Current standalone milestones** (post-M13, still pending):
+- **M10.5** — MLS transition for large groups (>150 members). Doesn't block Ostrom-scale.
+- **M11.5** — PWA persona UX (settings creation, distinct shell tint, overlap detector, separate unlock).
 
 ### Milestone M9 — Credential engine (`core/src/cred`) — the gate
 
