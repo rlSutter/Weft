@@ -6,3 +6,4 @@ export * from './join';
 export * from './messaging';
 export * from './ejection';
 export * from './respondent';
+export * from './rendezvous';
