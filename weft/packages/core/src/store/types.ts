@@ -170,11 +170,28 @@ export interface WeftStore {
     patch?: Partial<Pick<OutgoingInvite, 'redeemerPubkey' | 'redeemerName'>>,
   ): Promise<OutgoingInvite | undefined>;
 
-  // --- declared interests (M6, v0.1.1 persistence) ---
-  /** The strings the user has told their device to be findable for. */
-  listInterests(): Promise<string[]>;
-  addInterest(text: string): Promise<void>;
-  removeInterest(text: string): Promise<void>;
+  // --- declared interests (M6, v0.1.1 persistence — persona-scoped as of M11.5) ---
+  /** The strings the user has told their device to be findable for.
+   *  Interests are scoped per persona (DD §36.3 overlap detector).
+   *  Omit `personaIndex` for the root persona (index 0) — matches the
+   *  pre-M11.5 signature so callers that predate personas keep working. */
+  listInterests(personaIndex?: number): Promise<string[]>;
+  addInterest(text: string, personaIndex?: number): Promise<void>;
+  removeInterest(text: string, personaIndex?: number): Promise<void>;
+  /** List interests across ALL personas — used by the overlap detector
+   *  (M11.5-d) to warn before an ask closely matches another self's list.
+   *  Returns per-persona buckets. */
+  listInterestsAcrossPersonas(): Promise<Array<{ personaIndex: number; text: string }>>;
+
+  // --- persona directory (M11.5-a) ---
+  /** All personas known to this device, oldest-first (root at index 0). */
+  listPersonas(): Promise<Array<{ index: number; label: string; createdAt: number }>>;
+  /** Insert or update a persona record. `index` is the identity — subsequent
+   *  puts with the same index overwrite. */
+  putPersona(record: { index: number; label: string; createdAt: number }): Promise<void>;
+  /** Remove a persona (and any persona-scoped state — interests etc.).
+   *  Refuses to remove index 0; that's the load-bearing root persona. */
+  deletePersona(index: number): Promise<void>;
 
   // --- channel messages (M6, v0.1.1 persistence) ---
   appendMessage(msg: StoredMessage): Promise<void>;

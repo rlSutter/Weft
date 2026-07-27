@@ -17,10 +17,11 @@ import {
 } from '@weft/core';
 
 const DB_NAME = 'weft';
-// v2 adds `interests` and `messages` stores. Existing users' databases
-// upgrade in place — the upgrade callback only creates stores that don't
-// already exist, so v1 data is preserved untouched.
-const DB_VERSION = 2;
+// v3 adds `personas` store and scopes `interests` per persona
+// (composite key `${personaIndex}:${text}`). v2→v3 migration re-keys
+// any existing interest records under persona 0 (the root) so pre-M11.5
+// users' interests survive.
+const DB_VERSION = 3;
 
 type Tables = {
   events: NostrEvent;
@@ -30,16 +31,23 @@ type Tables = {
   queryStates: QueryState;
   reverseRoutes: ReverseRoute;
   invites: OutgoingInvite;
-  interests: { text: string };
+  /** Composite key = `${personaIndex}:${text}`. Persona 0 = root. */
+  interests: { key: string; personaIndex: number; text: string };
   messages: StoredMessage;
+  personas: { index: number; label: string; createdAt: number };
   meta: { key: string; value: unknown };
 };
+
+/** Encode the composite key for a persona-scoped interest. */
+function interestKey(personaIndex: number, text: string): string {
+  return `${personaIndex}:${text}`;
+}
 
 let db: IDBPDatabase | undefined;
 async function getDb(): Promise<IDBPDatabase> {
   if (db) return db;
   db = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, _old, _next) {
+    upgrade(db, oldVersion, _next, transaction) {
       if (!db.objectStoreNames.contains('events')) db.createObjectStore('events', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('contacts'))
         db.createObjectStore('contacts', { keyPath: 'pubkey' });
@@ -55,12 +63,37 @@ async function getDb(): Promise<IDBPDatabase> {
         db.createObjectStore('invites', { keyPath: 'iid' });
       if (!db.objectStoreNames.contains('meta'))
         db.createObjectStore('meta', { keyPath: 'key' });
-      // v2 additions.
-      if (!db.objectStoreNames.contains('interests'))
-        db.createObjectStore('interests', { keyPath: 'text' });
       if (!db.objectStoreNames.contains('messages')) {
         const store = db.createObjectStore('messages', { keyPath: 'id' });
         store.createIndex('peerPubkey', 'peerPubkey', { unique: false });
+      }
+      // v3 additions (M11.5).
+      if (!db.objectStoreNames.contains('personas')) {
+        db.createObjectStore('personas', { keyPath: 'index' });
+      }
+
+      // v2→v3 interest migration: the pre-M11.5 `interests` store was keyed
+      // by `text` and had shape `{text}`. v3 uses composite key
+      // `${personaIndex}:${text}` and shape `{key, personaIndex, text}`.
+      // Re-key any existing records under persona 0.
+      if (db.objectStoreNames.contains('interests') && oldVersion < 3) {
+        // Read pre-migration records, wipe the store, replace with v3 shape.
+        const oldStore = transaction.objectStore('interests');
+        void oldStore.getAll().then((rows: Array<{ text: string }>) => {
+          db.deleteObjectStore('interests');
+          const newStore = db.createObjectStore('interests', { keyPath: 'key' });
+          for (const r of rows) {
+            if (typeof r?.text === 'string') {
+              newStore.put({
+                key: interestKey(0, r.text),
+                personaIndex: 0,
+                text: r.text,
+              });
+            }
+          }
+        });
+      } else if (!db.objectStoreNames.contains('interests')) {
+        db.createObjectStore('interests', { keyPath: 'key' });
       }
     },
   });
@@ -193,16 +226,45 @@ export class IdbStore implements WeftStore {
     return next;
   }
 
-  // --- interests ---
-  async listInterests(): Promise<string[]> {
+  // --- interests (persona-scoped as of M11.5) ---
+  async listInterests(personaIndex: number = 0): Promise<string[]> {
     const all: Tables['interests'][] = await (await getDb()).getAll('interests');
-    return all.map((r) => r.text);
+    return all.filter((r) => r.personaIndex === personaIndex).map((r) => r.text);
   }
-  async addInterest(text: string): Promise<void> {
-    (await getDb()).put('interests', { text });
+  async addInterest(text: string, personaIndex: number = 0): Promise<void> {
+    (await getDb()).put('interests', {
+      key: interestKey(personaIndex, text),
+      personaIndex,
+      text,
+    });
   }
-  async removeInterest(text: string): Promise<void> {
-    (await getDb()).delete('interests', text);
+  async removeInterest(text: string, personaIndex: number = 0): Promise<void> {
+    (await getDb()).delete('interests', interestKey(personaIndex, text));
+  }
+  async listInterestsAcrossPersonas(): Promise<Array<{ personaIndex: number; text: string }>> {
+    const all: Tables['interests'][] = await (await getDb()).getAll('interests');
+    return all.map((r) => ({ personaIndex: r.personaIndex, text: r.text }));
+  }
+
+  // --- persona directory (M11.5) ---
+  async listPersonas(): Promise<Array<{ index: number; label: string; createdAt: number }>> {
+    const all: Tables['personas'][] = await (await getDb()).getAll('personas');
+    return all.sort((a, b) => a.index - b.index);
+  }
+  async putPersona(record: { index: number; label: string; createdAt: number }): Promise<void> {
+    await (await getDb()).put('personas', record);
+  }
+  async deletePersona(index: number): Promise<void> {
+    if (index === 0) throw new Error('cannot delete the root persona (index 0)');
+    const d = await getDb();
+    await d.delete('personas', index);
+    // Also delete this persona's interests.
+    const all: Tables['interests'][] = await d.getAll('interests');
+    const tx = d.transaction('interests', 'readwrite');
+    for (const r of all) {
+      if (r.personaIndex === index) await tx.store.delete(r.key);
+    }
+    await tx.done;
   }
 
   // --- messages ---

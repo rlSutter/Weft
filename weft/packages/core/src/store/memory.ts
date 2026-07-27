@@ -36,8 +36,11 @@ export class MemoryStore implements WeftStore {
   private readonly queryStates = new Map<string, QueryState>();
   private readonly reverseRoutes = new Map<string, ReverseRoute>();
   private readonly invites = new Map<string, OutgoingInvite>();
-  private readonly interests = new Set<string>();
+  /** persona index → set of interest texts. Persona 0 is the root. */
+  private readonly interestsByPersona = new Map<number, Set<string>>();
   private readonly messages = new Map<string, StoredMessage>();
+  /** persona index → record. Populated lazily; index 0 always implicit. */
+  private readonly personas = new Map<number, { index: number; label: string; createdAt: number }>();
   private userPubkey: string | undefined;
 
   constructor(opts: MemoryStoreOptions = {}) {
@@ -174,15 +177,41 @@ export class MemoryStore implements WeftStore {
     return next;
   }
 
-  // --- interests ---
-  async listInterests(): Promise<string[]> {
-    return [...this.interests];
+  // --- interests (persona-scoped as of M11.5) ---
+  async listInterests(personaIndex: number = 0): Promise<string[]> {
+    const bucket = this.interestsByPersona.get(personaIndex);
+    return bucket ? [...bucket] : [];
   }
-  async addInterest(text: string): Promise<void> {
-    this.interests.add(text);
+  async addInterest(text: string, personaIndex: number = 0): Promise<void> {
+    let bucket = this.interestsByPersona.get(personaIndex);
+    if (!bucket) {
+      bucket = new Set<string>();
+      this.interestsByPersona.set(personaIndex, bucket);
+    }
+    bucket.add(text);
   }
-  async removeInterest(text: string): Promise<void> {
-    this.interests.delete(text);
+  async removeInterest(text: string, personaIndex: number = 0): Promise<void> {
+    this.interestsByPersona.get(personaIndex)?.delete(text);
+  }
+  async listInterestsAcrossPersonas(): Promise<Array<{ personaIndex: number; text: string }>> {
+    const out: Array<{ personaIndex: number; text: string }> = [];
+    for (const [idx, bucket] of this.interestsByPersona) {
+      for (const text of bucket) out.push({ personaIndex: idx, text });
+    }
+    return out;
+  }
+
+  // --- persona directory (M11.5) ---
+  async listPersonas(): Promise<Array<{ index: number; label: string; createdAt: number }>> {
+    return [...this.personas.values()].sort((a, b) => a.index - b.index);
+  }
+  async putPersona(record: { index: number; label: string; createdAt: number }): Promise<void> {
+    this.personas.set(record.index, { ...record });
+  }
+  async deletePersona(index: number): Promise<void> {
+    if (index === 0) throw new Error('cannot delete the root persona (index 0)');
+    this.personas.delete(index);
+    this.interestsByPersona.delete(index);
   }
 
   // --- messages ---
@@ -228,7 +257,8 @@ export class MemoryStore implements WeftStore {
     this.queryStates.clear();
     this.reverseRoutes.clear();
     this.invites.clear();
-    this.interests.clear();
+    this.interestsByPersona.clear();
     this.messages.clear();
+    this.personas.clear();
   }
 }
