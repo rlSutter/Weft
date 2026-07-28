@@ -12,12 +12,16 @@
 //   Redeem       fragment path: /#/i/<token>; charter consent → keypair
 //   WhyItWorks    counters + honest surfaces
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { WeftProvider, useWeft, useRoute } from './context';
 import { decodeInviteToken, describeToken, generateKeypair, bytesToHex } from '@weft/core';
 import type { InviteTokenDescription } from '@weft/core';
 import { tokens } from './styles';
 import { Landing } from './Landing';
+import { SettingsScreen } from './Settings';
+import { personaPalette } from './persona-tint';
+import { IdbStore } from './idb-store';
+import { StubEmbedder } from '@weft/core';
 
 export function App(): JSX.Element {
   return (
@@ -28,9 +32,16 @@ export function App(): JSX.Element {
 }
 
 function Shell(): JSX.Element {
-  const { client, state, identity } = useWeft();
+  const { client, state, identity, activePersona } = useWeft();
   const [route, navigate] = useRoute();
   const [startedOnboarding, setStartedOnboarding] = useState(false);
+
+  // Persona shell tint (M11.5-c). Root persona keeps the canonical pine;
+  // secondary personas get a distinct accent derived from their pubkey.
+  const palette = useMemo(() => {
+    if (!activePersona) return null;
+    return personaPalette(activePersona.index, activePersona.pubkeyHex, activePersona.label);
+  }, [activePersona]);
 
   // Redeem route works even without an identity (identity is created inside
   // the redemption flow).
@@ -63,14 +74,18 @@ function Shell(): JSX.Element {
   }
 
   return (
-    <Frame>
+    <Frame palette={palette}>
       {!identity && <Onboarding onBackToLanding={() => setStartedOnboarding(false)} />}
       {identity && client && state && (
         <>
+          {palette && palette.eyebrow && <PersonaBadge label={palette.eyebrow} color={palette.accent} />}
           {route.name === 'home' && <Home onNav={navigate} />}
           {route.name === 'ask' && <AskScreen onBack={() => navigate({ name: 'home' })} />}
           {route.name === 'invite' && <InviteScreen onBack={() => navigate({ name: 'home' })} />}
           {route.name === 'why' && <WhyItWorks onBack={() => navigate({ name: 'home' })} />}
+          {route.name === 'settings' && (
+            <SettingsScreen onBack={() => navigate({ name: 'home' })} />
+          )}
           {route.name === 'match' && (
             <MatchScreen queryId={route.queryId} onBack={() => navigate({ name: 'home' })} />
           )}
@@ -83,13 +98,59 @@ function Shell(): JSX.Element {
   );
 }
 
+/**
+ * A small persona-aware badge shown above every screen when a secondary
+ * persona is active. Root persona doesn't render this — the base app IS
+ * the root's default appearance.
+ */
+function PersonaBadge({ label, color }: { label: string; color: string }): JSX.Element {
+  return (
+    <div
+      style={{
+        background: color,
+        color: 'white',
+        padding: '4px 10px',
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: '.1em',
+        textTransform: 'uppercase',
+        display: 'inline-block',
+        marginBottom: 12,
+      }}
+      aria-label="Active persona"
+    >
+      {label}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Frame — universal layout container
 // ---------------------------------------------------------------------------
 
-function Frame({ children }: { children: React.ReactNode }): JSX.Element {
+function Frame({
+  children,
+  palette,
+}: {
+  children: React.ReactNode;
+  palette?: { accent: string; accentSoft: string } | null;
+}): JSX.Element {
+  // Persona tint (M11.5-c): CSS custom properties let downstream components
+  // pick up the persona accent without prop-drilling. Root persona sees the
+  // canonical tokens.accent (no override).
+  const style: React.CSSProperties & Record<string, string> = {
+    fontFamily: tokens.sans,
+    background: tokens.paper,
+    minHeight: '100vh',
+    color: tokens.ink,
+  };
+  if (palette) {
+    style['--weft-accent'] = palette.accent;
+    style['--weft-accent-soft'] = palette.accentSoft;
+  }
   return (
-    <div style={{ fontFamily: tokens.sans, background: tokens.paper, minHeight: '100vh', color: tokens.ink }}>
+    <div style={style}>
       <div style={{ maxWidth: 400, margin: '0 auto', padding: '18px 20px 90px' }}>{children}</div>
     </div>
   );
@@ -401,6 +462,16 @@ function Home({ onNav }: { onNav: (r: import('./context').Route) => void }): JSX
         >
           About Weft
         </a>
+        <a
+          href="#settings"
+          onClick={(e) => {
+            e.preventDefault();
+            onNav({ name: 'settings' });
+          }}
+          style={{ color: tokens.muted, fontSize: 13 }}
+        >
+          Settings
+        </a>
       </div>
     </>
   );
@@ -411,15 +482,79 @@ function Home({ onNav }: { onNav: (r: import('./context').Route) => void }): JSX
 // ---------------------------------------------------------------------------
 
 function AskScreen({ onBack }: { onBack: () => void }): JSX.Element {
-  const { client } = useWeft();
+  const { client, activePersona, personas } = useWeft();
   const [text, setText] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  /** DD §36.3 overlap detector: filled when the ask closely matches an
+   *  interest declared under another persona. Two-step confirm before send. */
+  const [overlap, setOverlap] = useState<{ personaLabel: string; personaIndex: number; text: string } | null>(null);
+
+  const doSend = async (askText: string): Promise<void> => {
+    if (!client) return;
+    setStatus('sending');
+    await client.ask(askText);
+    setStatus('sent');
+  };
 
   if (status === 'sent') {
     return (
       <Card>
         <p>Your ask is traveling. Answers usually come within a day or two, as friends come online.</p>
         <PrimaryButton onClick={onBack}>OK</PrimaryButton>
+      </Card>
+    );
+  }
+
+  if (overlap) {
+    return (
+      <Card>
+        <BackButton onClick={() => setOverlap(null)} />
+        <div
+          style={{
+            background: tokens.amberSoft,
+            border: `1.5px solid ${tokens.amber}`,
+            borderRadius: tokens.cardRadius,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <H2>This overlaps with another self</H2>
+          <p style={{ color: tokens.ink, fontSize: 14, margin: '0 0 6px' }}>
+            You're currently <strong>{activePersona?.label}</strong>, but this ask
+            closely matches something your <strong>{overlap.personaLabel}</strong> self
+            already talks about ("{overlap.text}").
+          </p>
+          <p style={{ color: tokens.muted, fontSize: 12, margin: 0, lineHeight: 1.4 }}>
+            Overlaps like this are how habits link selves. Weft can't link them,
+            but a curious observer can.
+          </p>
+        </div>
+        <button
+          onClick={() => setOverlap(null)}
+          style={{
+            width: '100%',
+            padding: 12,
+            background: 'transparent',
+            color: tokens.muted,
+            border: `1px solid ${tokens.line}`,
+            borderRadius: tokens.buttonRadius,
+            fontSize: 14,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            marginBottom: 8,
+          }}
+        >
+          Rewrite it
+        </button>
+        <PrimaryButton
+          onClick={async () => {
+            const askText = text.trim();
+            setOverlap(null);
+            await doSend(askText);
+          }}
+        >
+          Send anyway
+        </PrimaryButton>
       </Card>
     );
   }
@@ -451,10 +586,18 @@ function AskScreen({ onBack }: { onBack: () => void }): JSX.Element {
       <PrimaryButton
         disabled={text.trim().length === 0 || status === 'sending' || !client}
         onClick={async () => {
-          if (!client) return;
-          setStatus('sending');
-          await client.ask(text.trim());
-          setStatus('sent');
+          if (!client || !activePersona) return;
+          const askText = text.trim();
+          // Only run overlap detection when there's more than one persona —
+          // a root-only user has no self to overlap with.
+          if (personas.length > 1) {
+            const hit = await findOverlap(askText, activePersona.index, personas);
+            if (hit) {
+              setOverlap(hit);
+              return;
+            }
+          }
+          await doSend(askText);
         }}
       >
         {status === 'sending' ? 'Sending…' : 'Send it'}
@@ -1177,6 +1320,57 @@ function StartOverSection(): JSX.Element {
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Overlap detector — DD §36.3 M11.5-d
+// ---------------------------------------------------------------------------
+
+/**
+ * Cosine-similarity check between an ask embedding and every interest
+ * declared under any persona OTHER than the active one. Returns the
+ * strongest overlap (persona label, text) if any exceeds the threshold,
+ * else null.
+ *
+ * Uses the StubEmbedder to match what the query engine uses in v0 —
+ * MiniLM would be higher-fidelity but the stub is deterministic and cheap
+ * (M5-T1). If MiniLM lands in the client-side embedder, this function
+ * automatically inherits it via `client.embedder` — no rewrite needed.
+ */
+async function findOverlap(
+  askText: string,
+  activePersonaIndex: number,
+  personas: readonly { index: number; label: string }[],
+): Promise<{ personaLabel: string; personaIndex: number; text: string } | null> {
+  const store = new IdbStore();
+  const allInterests = await store.listInterestsAcrossPersonas();
+  const otherInterests = allInterests.filter((i) => i.personaIndex !== activePersonaIndex);
+  if (otherInterests.length === 0) return null;
+
+  const embedder = new StubEmbedder();
+  const askVec = await embedder.embed(askText);
+  const cosine = (a: Float32Array, b: Float32Array): number => {
+    let dot = 0;
+    for (let i = 0; i < a.length; i++) dot += a[i]! * b[i]!;
+    return dot; // both are L2-normalized by StubEmbedder
+  };
+
+  const THRESHOLD = 0.75;
+  let best: { personaLabel: string; personaIndex: number; text: string; score: number } | null = null;
+  for (const it of otherInterests) {
+    const vec = await embedder.embed(it.text);
+    const score = cosine(askVec, vec);
+    if (score >= THRESHOLD && (!best || score > best.score)) {
+      const rec = personas.find((p) => p.index === it.personaIndex);
+      best = {
+        personaLabel: rec?.label ?? `persona ${it.personaIndex}`,
+        personaIndex: it.personaIndex,
+        text: it.text,
+        score,
+      };
+    }
+  }
+  return best ? { personaLabel: best.personaLabel, personaIndex: best.personaIndex, text: best.text } : null;
+}
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }): JSX.Element {
   return (
