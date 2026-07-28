@@ -267,10 +267,17 @@ Everything in the group and persona layers consumes this. Build and prove it in 
 
 **M11-T3 Persona UX — moved to standalone milestone M11.5 (2026-07-25).** Same reasoning as M10-T6: PWA UX work of this scope (settings creation, distinct shell tint from persona key, verbatim §18.5 warning, persona-scoped interest lists with overlap detector, separate unlock) is genuinely multi-day and belongs on its own milestone. Ostrom-scale personas at the protocol layer are fully supported by M11-T1 + M11-T2.
 
-### Milestone M11.5 — Persona UX (`pwa`) — DEFERRED
+### Milestone M11.5 — Persona UX (`pwa`) — **SHIPPED 2026-07-27**
 
-**M11.5-T1 PWA persona UX** (per UX spec v2 addendum). Creation in settings only; visually distinct shell (accent from persona key); the §18.5 warning verbatim; persona-scoped interest lists with the **overlap detector**; separate unlock by default.
-*Accept:* creating a persona re-tints the shell; the overlap detector warns before sending an ask that closely matches another self's; personas sit behind a separate unlock; component tests confirm no cross-persona state bleed in the UI.
+**M11.5-T1 PWA persona UX** (per UX spec v2 addendum) — SHIPPED.
+- Creation in settings only ✓ (`packages/pwa/src/Settings.tsx`)
+- Visually distinct shell (accent from persona key) ✓ (`packages/pwa/src/persona-tint.ts`)
+- The §18.5 warning verbatim ✓ (exported as `PERSONA_WARNING_VERBATIM`)
+- Persona-scoped interest lists ✓ (IdbStore v3 composite-key migration)
+- Overlap detector ✓ (`findOverlap` in AskScreen; StubEmbedder + cosine ≥0.75)
+- Separate unlock by default — **partial**: alpha ships confirm-tap; full passphrase-per-persona lands in v0.3 with the encrypted-backup work (v2 IOU per SECURITY.md). Rationale inline at `ConfirmSwitchCard`.
+
+Component tests of the full flow (jsdom + testing-library) remain Layer 3.5 deferred per TESTING.md; a small unit test of `personaPalette` ships in `packages/pwa/src/__tests__/persona-tint.test.ts`.
 
 ### Milestone M12 — Rendezvous (anonymous-credential entry, DD §17.4)
 

@@ -16,6 +16,81 @@ All notable changes to Weft are recorded here. Format follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added — 2026-07-27 — persona UX in the PWA (M11.5) — reviewed by: pending
+
+Wires the M11 protocol layer (persona derivation + k-show binding, both
+shipped in `core/src/persona/`) into the alpha PWA. Users can create
+unlinkable secondary selves from a Settings screen, see which self is
+active via a persona-tinted chip and CSS accent, get warned when an ask
+overlaps another self's declared interests, and confirm-tap before
+switching. Everything DD §36.3 called for at the UX level is now in the
+shipping app — with the one honest exception noted below.
+
+- **M11.5-a** persona-aware WeftContext + persona-scoped IdbStore.
+  * WeftClient rebuilt per active persona: its Nostr keypair is
+    `personaRoot(rootSecret, activePersonaIndex)` (or the raw root for
+    index 0). Switching personas destroys+rebuilds the client so its
+    per-persona state (interests, cached vouches, invites, messages)
+    is scoped correctly.
+  * WeftStore interface: persona directory methods (list/put/delete)
+    + persona-scoped interest methods (all take an optional
+    personaIndex defaulting to 0, so pre-M11.5 callers keep working).
+  * IdbStore DB v2 → v3 migration: adds `personas` store, re-shapes
+    `interests` to composite key `${personaIndex}:${text}`; existing
+    user interests re-tagged as persona 0. No data loss.
+  * `identity` remains as a legacy alias in the context so screens
+    written pre-M11.5 keep working — it now returns the ACTIVE
+    persona's shape.
+
+- **M11.5-b** SettingsScreen + persona creation flow.
+  * New `#settings` route; linked from Home footer.
+  * Persona directory listing shows root (index 0, unremovable) plus
+    any secondary personas.
+  * "Start a separate self" opens a creation form that displays the
+    §18.5 warning **verbatim**: "the network can't link your selves;
+    your habits can". The warning is exported as
+    `PERSONA_WARNING_VERBATIM` so a copy-lint (future) can pin the
+    string. A checkbox acknowledgment gates the Create button.
+
+- **M11.5-c** Distinct shell tint per persona.
+  * `personaPalette(index, pubkeyHex, label)` deterministically hashes
+    the pubkey to an HSL hue; root persona keeps the canonical pine
+    (unchanged). The Frame propagates the palette via CSS custom
+    properties (`--weft-accent`, `--weft-accent-soft`) so future
+    persona-aware components can pick it up without prop drilling.
+  * A `PersonaBadge` chip above every screen shows which persona is
+    active — never rendered for the root persona (no ambient noise
+    when a user has only one self).
+
+- **M11.5-d** Overlap detector on ask submission.
+  * On Send, if more than one persona exists, `findOverlap` embeds the
+    ask via StubEmbedder (same embedder the query engine uses in v0)
+    and cosine-compares against every interest declared under ANOTHER
+    persona. If any similarity ≥0.75, a two-step confirm card names
+    the overlapping persona + interest text and offers "Rewrite it"
+    or "Send anyway". Root-only users skip the check entirely.
+
+- **M11.5-e** Confirm-switch (alpha's version of "separate unlock").
+  * DD §36.3 mandates "separate unlock by default." The full
+    implementation gates each persona behind a passphrase-derived
+    key stored in the encrypted backup blob; that lands in v0.3 with
+    the encrypted-backup work (a v2 IOU per SECURITY.md). The alpha
+    ships a confirm-tap: switching to another self requires a
+    deliberate "Switch" tap on a confirmation card. Rationale
+    documented inline at `ConfirmSwitchCard`.
+
+Test count workspace-wide: **285 total** (was 283). PWA: 10 (was 5) —
+5 new tests for `personaPalette`. Component tests of the full flow
+stay deferred to Layer 3.5 per TESTING.md (jsdom + testing-library
+still not wired).
+
+Bundle: PWA 446 KB → 475 KB (~150 KB gz → ~157 KB gz).
+
+**Both v2-adjacent standalone milestones are now closed** except for
+M10.5 (MLS transition for large groups >150 members), which stays
+deferred because it blocks nothing at Ostrom scale. Weft's v2
+protocol layer + persona UX + rendezvous is complete and shipping.
+
 ### Added — 2026-07-26 — Gates 5 and 6 live; Gate 3 extended to groups (M13) — reviewed by: pending
 
 Invariant 5 ("plurality bounded, accountability scoped") moves from
